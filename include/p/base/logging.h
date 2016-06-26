@@ -28,76 +28,39 @@ public:
     typedef LogStream   self;
     static const int kMaxNumericSize = 32;
 
-    self& operator<<(bool v) {
-        append(v ? '1' : '0');
-        return *this;
-    }
+    LogStream() {}
 
-    self& operator<<(char v) {
-        append(v);
-        return *this;
-    }
+    self& operator<<(bool v) { append(v ? '1' : '0'); return *this; }
 
-    self& operator<<(short v) {
-        _AppendInteger(v);
-        return *this;
-    }
+    self& operator<<(char v) { append(v); return *this; }
 
-    self& operator<<(unsigned short v) {
-        _AppendInteger(v);
-        return *this;
-    }
+    self& operator<<(short v) { _AppendInteger(v); return *this; }
 
-    self& operator<<(int v) {
-        _AppendInteger(v);
-        return *this;
-    }
+    self& operator<<(unsigned short v) { _AppendInteger(v); return *this; }
 
-    self& operator<<(unsigned int v) {
-        _AppendInteger(v);
-        return *this;
-    }
+    self& operator<<(int v) { _AppendInteger(v); return *this; }
 
-    self& operator<<(long v) {
-        _AppendInteger(v);
-        return *this;
-    }
+    self& operator<<(unsigned int v) { _AppendInteger(v); return *this; }
 
-    self& operator<<(unsigned long v) {
-        _AppendInteger(v);
-        return *this;
-    }
+    self& operator<<(long v) { _AppendInteger(v); return *this; }
 
-    self& operator<<(long long v) {
-        _AppendInteger(v);
-        return *this;
-    }
+    self& operator<<(unsigned long v) { _AppendInteger(v); return *this; }
 
-    self& operator<<(unsigned long long v) {
-        _AppendInteger(v);
-        return *this;
-    }
+    self& operator<<(long long v) { _AppendInteger(v); return *this; }
+
+    self& operator<<(unsigned long long v) { _AppendInteger(v); return *this; }
+
+    self& operator<<(float v) { *this << static_cast<double>(v); return *this; }
+
+    self& operator<<(long double v) { appendf("%LF", v); return *this; }
+
+    self& operator<<(double v) { appendf("%F", v); return *this; }
 
     self& operator<<(const void* v) {
         const int kMaxPointerSize = 2 * sizeof(const void*) + 2;
         if (avial() >= kMaxPointerSize) {
-            add(Utils::ConvertPointer(cur(), v));
+            add(ConvertPointer(cur(), v));
         }
-        return *this;
-    }
-
-    self& operator<<(float v) {
-        *this << static_cast<double>(v);
-        return *this;
-    }
-
-    self& operator<<(long double v) {
-        appendf("%LF", v);
-        return *this;
-    }
-
-    self& operator<<(double v) {
-        appendf("%F", v);
         return *this;
     }
 
@@ -114,20 +77,21 @@ private:
     template<typename T>
     void _AppendInteger(T v) {
         if (avial() >= kMaxNumericSize) {
-            add(Utils::ConvertInteger(cur(), v));
+            add(ConvertInteger(cur(), v));
         }
     }
 
 private:
     LogLevel    log_level_;
-    const char* file_name_;
     int         file_line_;
+    const char* file_name_;
     bool        flush_ = true;
+    DISALLOW_COPY(LogStream);
 };
 
 class Logger {
 public:
-    Logger(int i) {
+    explicit Logger(int i) {
         thread_local static LogStream tls_log_stream;
         const char* const LogLevelName[] =
             {"TRACE ", "DEBUG ", "INFO  ", "WARN  ", "ERROR ", "FATAL "};
@@ -144,6 +108,7 @@ public:
     }
 private:
     LogStream*  log_stream_;
+    DISALLOW_COPY(Logger);
 };
 
 } // end namespace base

@@ -70,17 +70,24 @@ public:
     }
 
     char* cur() { return cur_; }
+
     void add(size_t len) { cur_ += len; }
 
     const char* data() const { return data_; }
+
     const char* begin() const { return data_; }
+
     const char* end() const { return cur_; }
+
     bool empty() const { return cur_ == data_; }
+
     const int length() const { return static_cast<int>(cur_ - data_); }
+
     const int avial() const {
         // reserve a byte for NULL
         return static_cast<int>(reinterpret_cast<const char*>(&cur_) - cur_ - 1);
     }
+
     const char* c_str() const {
         // has reversed a byte for this NULL
         *cur_ = 0;
@@ -90,7 +97,6 @@ public:
 private:
     char    data_[N];
     char*   cur_ = data_;
-private:
     DISALLOW_COPY(FixedBuffer);
 };
 
