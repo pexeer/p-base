@@ -3,22 +3,19 @@
 
 #pragma once
 
-#include <unistd.h>
-#include <ctype.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
+#include <netinet/in.h>     // in_addr, INADDR_NONE, INADDR_ANY
 
 namespace p {
 namespace base {
 
 // convert hostname to structed ip
-//  eg. 'www.baidu.com" to '123.125.114.144'
-int hostname2ip(const char *hostname, in_addr *ip);
+//  eg. 'www.baidu.com" to in_addr_t, from dns server
+//      '10.10.98.98' to in_addr_t, equals to str2ip
+in_addr_t hostname2ip(const char *hostname);
 
 // convert a ip address in dotted-decimal fomart to binary
-// eg. '10.10.98.98' to sturct in_addr
-int str2ip(const char *ip_str, in_addr *ip);
+// eg. '10.10.98.98' to in_addr_t
+in_addr_t str2ip(const char *ip_str);
 
 // EndPoint is a combination of an IP address and a port number
 // sizeof(EndPoint) == 8
@@ -26,26 +23,32 @@ class EndPoint {
 public:
     EndPoint() {}
 
-    // convert '10.10.98.98:8080' to EndPoint
+    // convert 'www.google.com:8080' to EndPoint
     explicit EndPoint(const char *ip_port);
 
     EndPoint(const char *ip, short port) {
         port_ = port;
-        if (str2ip(ip, &ip_)) {
-            ip_ = { INADDR_NONE };
-        }
+        ip_  = hostname2ip(ip);
     }
 
     explicit operator bool() const {
-        return ip_.s_addr != INADDR_NONE;
+        return ip_ != INADDR_NONE;
+    }
+
+    unsigned short port() const {
+        return port_;
+    }
+
+    in_addr_t ip() const {
+        return ip_;
     }
 
 public:
-    static struct in_addr   s_local_ip;
+    static in_addr_t    s_local_ip;
 private:
     // typeof(in_addr.s_addr) is in_addr_t
-    struct  in_addr         ip_ = { INADDR_NONE };
-    unsigned short int      port_ = 0;
+    in_addr_t               ip_ = INADDR_NONE;  // net byte order
+    unsigned short          port_ = 0;          // host byte order
 };
 
 } // end namespace base

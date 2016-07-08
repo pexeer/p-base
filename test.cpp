@@ -23,7 +23,7 @@ constexpr const char* c_strrchr(const char* src, const char ch)
 template<int N>
 constexpr const char* findrchr(const char (&src)[N], const char ch)
 {
-    return strrchr(src, ch) ? strrchr(src, ch) : &(src[0]);
+    return c_strrchr(src, ch) ? c_strrchr(src, ch) : &(src[0]);
 }
 
 

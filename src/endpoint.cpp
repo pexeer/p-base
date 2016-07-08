@@ -1,17 +1,21 @@
 // Copyright (c) 2016, pexeer@gmail.com All rights reserved.
 // Licensed under a BSD-style license that can be found in the LICENSE file.
 
-#include <stdlib.h>
-#include <string.h>
-#include <netdb.h>
 #include "p/base/endpoint.h"
+
+#include <unistd.h>     // gethostname
+#include <stdlib.h>     // strtol
+#include <string.h>     // memcpy
+#include <ctype.h>      // isspace
+#include <netdb.h>      // gethostbyname_r
+#include <arpa/inet.h>  // inet_pton
 
 namespace p {
 namespace base {
 
-struct in_addr EndPoint::s_local_ip = { INADDR_NONE };
+in_addr_t EndPoint::s_local_ip = INADDR_NONE;
 
-int hostname2ip(const char *hostname, in_addr *ip) {
+in_addr_t hostname2ip(const char *hostname) {
     // skip heading space
     for (; isspace(*hostname); ++hostname) {}
 
@@ -21,19 +25,19 @@ int hostname2ip(const char *hostname, in_addr *ip) {
     struct hostent *result = NULL;
     if (gethostbyname_r(hostname, &ent, buf, sizeof(buf),
                         &result, &error) != 0 || result == NULL) {
-        return -1;
+        return INADDR_NONE;
     }
-    // copy first ip
-    memcpy((char*)ip, (char*)result->h_addr, result->h_length);
-    return 0;
+    // get first ip
+    return ((struct in_addr *)(result->h_addr))->s_addr;
 }
 
-int str2ip(const char *ip_str, in_addr *ip) {
+in_addr_t str2ip(const char *ip_str) {
     for (; isspace(*ip_str); ++ip_str) {}
-    if (inet_pton(AF_INET, ip_str, ip) > 0) {
-        return 0;
+    struct in_addr ip;
+    if (inet_pton(AF_INET, ip_str, &ip) > 0) {
+        return ip.s_addr;
     }
-    return -1;
+     return INADDR_NONE;
 }
 
 EndPoint::EndPoint(const char *ip_port) {
@@ -43,8 +47,9 @@ EndPoint::EndPoint(const char *ip_port) {
     while (*ip_port) {
         if (*ip_port == ':') {
             *ip = '\0';
-            if (hostname2ip(buf, &ip_)) {
-                break;
+            ip_ = hostname2ip(buf);
+            if (INADDR_NONE == ip_) {
+                return ;
             }
             const char *port_str = ++ip_port;
             while (*ip_port) { ++ip_port; }
@@ -68,7 +73,7 @@ EndPoint::EndPoint(const char *ip_port) {
         ip++;
         ip_port++;
     }
-    ip_ = { INADDR_NONE };
+    ip_ = INADDR_NONE;
 }
 
 class Dummy {
@@ -78,7 +83,7 @@ public:
         if (gethostname(buf, sizeof(buf)) < 0) {
             return ;
         }
-        hostname2ip(buf, &EndPoint::s_local_ip);
+        EndPoint::s_local_ip = hostname2ip(buf);
     }
 } dummy;
 

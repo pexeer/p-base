@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <arpa/inet.h>
 #include "p/base/logging.h"
 #include "p/base/buffer.h"
 #include "p/base/endpoint.h"
@@ -33,9 +34,11 @@ int main(void) {
         printf("%s\n", buf.c_str());
     }
 
-    in_addr ip = p::base::EndPoint::s_local_ip;
+    in_addr_t ip = p::base::EndPoint::s_local_ip;
     char xbuf[512];
-    const char * ret = inet_ntop(AF_INET, &ip, xbuf, sizeof(xbuf));
+    in_addr real_ip;
+    real_ip.s_addr = ip;
+    const char * ret = inet_ntop(AF_INET, &real_ip, xbuf, sizeof(xbuf));
     p::base::Logger(6).stream() << ret ;
     return 0;
 }

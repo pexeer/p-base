@@ -3,12 +3,12 @@
 # Wed Sep  9 19:45:01 CST 2015
 
 STD=-std=c++11
-WARN=-Wall -Werror
+WARNING=-Wall -Werror
 DEBUG=-g -ggdb
-OPT=-O3
+#OPT=-O3
 
-FINAL_CFLAGS=$(WARN) $(OPT) $(DEBUG) $(CFLAGS)
-FINAL_CXXFLAGS=$(STD) $(WARN) $(OPT) $(DEBUG) $(CFLAGS) -I./include
+FINAL_CFLAGS=$(WARNING) $(OPT) $(DEBUG) $(CFLAGS)
+FINAL_CXXFLAGS=$(STD) $(WARNING) $(OPT) $(DEBUG) $(CFLAGS) -I./include
 FINAL_LDFLAGS=$(LDFLAGS)  $(DEBUG)
 FINAL_LIBS=-lm -ldl -pthread
 
@@ -28,7 +28,7 @@ P_CC=$(QUIET_C)$(CC) $(FINAL_CFLAGS)
 P_CXX=$(QUIET_C)$(CXX) $(FINAL_CXXFLAGS)
 P_LD=$(QUIET_LINK)$(CXX) $(FINAL_LDFLAGS)
 
-p-base.a: src/utils.o src/endpoint.o
+p-base.a: src/utils.o src/endpoint.o src/socket.o
 	ar cr $@ $^
 
 src/%.o: src/%.cpp

@@ -93,7 +93,7 @@ class Logger {
 public:
     explicit Logger(int i) {
         thread_local static LogStream tls_log_stream;
-        const char* const LogLevelName[] =
+        static const char* const LogLevelName[] =
             {"TRACE ", "DEBUG ", "INFO  ", "WARN  ", "ERROR ", "FATAL "};
         tls_log_stream.append(LogLevelName[i]);
         log_stream_ = &tls_log_stream;
