@@ -13,6 +13,7 @@ namespace base {
 // a simple logging implement
 // copy code from muduo, https://github.com/chenshuo/muduo
 
+//{"TRACE", "DEBUG", "INFO ", "WARN ", "ERROR", "FATAL"};
 enum class LogLevel {
     TRACE,
     DEBUG,
@@ -20,13 +21,13 @@ enum class LogLevel {
     WARN,
     ERROR,
     FATAL,
-    NUM_LOG_LEVELS
+    COUNT_LOG_LEVEL
 };
 
 class LogStream : public SmallFixedBuffer {
 public:
     typedef LogStream   self;
-    static const int kMaxNumericSize = 32;
+    static constexpr int kMaxNumericSize = 24;
 
     LogStream() {}
 
@@ -57,7 +58,7 @@ public:
     self& operator<<(double v) { appendf("%F", v); return *this; }
 
     self& operator<<(const void* v) {
-        const int kMaxPointerSize = 2 * sizeof(const void*) + 2;
+        constexpr int kMaxPointerSize = 2 * sizeof(const void*) + 2;
         if (avial() >= kMaxPointerSize) {
             add(ConvertPointer(cur(), v));
         }
@@ -91,11 +92,11 @@ private:
 
 class Logger {
 public:
-    explicit Logger(int i) {
+    explicit Logger(LogLevel i) {
         thread_local static LogStream tls_log_stream;
-        static const char* const LogLevelName[] =
-            {"TRACE ", "DEBUG ", "INFO  ", "WARN  ", "ERROR ", "FATAL "};
-        tls_log_stream.append(LogLevelName[i]);
+        constexpr const char* LogLevelName[] =
+            {"TRACE", "DEBUG", "INFO ", "WARN ", "ERROR", "FATAL"};
+        tls_log_stream.append(LogLevelName[static_cast<int>(i)]);
         log_stream_ = &tls_log_stream;
     }
 

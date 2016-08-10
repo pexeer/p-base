@@ -17,3 +17,16 @@
     TypeName(const TypeName&&) = delete;        \
     void operator=(const TypeName&) = delete;   \
     void operator=(const TypeName&&) = delete
+
+#ifdef __linux__
+    #define OS_LINUX
+#elif __unix || __unix__
+    #define OS_UNIX
+#elif __APPLE__ || __MACH__
+    #define OS_MAC
+#elif __FreeBSD__
+    #define OS_FREEBSD
+#else
+    #define OS_UNKNOWN
+static_assert(false, "CANNOT DETECT OS TYPE.");
+#endif

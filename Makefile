@@ -3,10 +3,14 @@
 # Wed Sep  9 19:45:01 CST 2015
 
 STD=-std=c++11
-WARNING=-Wall -Werror
+#WARNING=-Wall -Werror
 DEBUG=-g -ggdb
 #OPT=-O3
 
+CC=gcc-mp-5
+CXX=g++-mp-5
+CC=clang-mp-3.9
+CXX=clang++-mp-3.9
 FINAL_CFLAGS=$(WARNING) $(OPT) $(DEBUG) $(CFLAGS)
 FINAL_CXXFLAGS=$(STD) $(WARNING) $(OPT) $(DEBUG) $(CFLAGS) -I./include
 FINAL_LDFLAGS=$(LDFLAGS)  $(DEBUG)

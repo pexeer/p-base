@@ -3,6 +3,7 @@
 
 #include "p/base/endpoint.h"
 
+#include <stdio.h>
 #include <unistd.h>     // gethostname
 #include <stdlib.h>     // strtol
 #include <string.h>     // memcpy
@@ -19,6 +20,7 @@ in_addr_t hostname2ip(const char *hostname) {
     // skip heading space
     for (; isspace(*hostname); ++hostname) {}
 
+#ifdef OS_LINUX
     char buf[1024];
     int error = 0;
     struct hostent ent;
@@ -29,6 +31,14 @@ in_addr_t hostname2ip(const char *hostname) {
     }
     // get first ip
     return ((struct in_addr *)(result->h_addr))->s_addr;
+#else
+    struct hostent *result = gethostbyname(hostname);
+    if (result) {
+        // get first ip
+        return ((struct in_addr*)(result->h_addr))->s_addr;
+    }
+#endif
+    return INADDR_NONE;
 }
 
 in_addr_t str2ip(const char *ip_str) {
@@ -83,7 +93,8 @@ public:
         if (gethostname(buf, sizeof(buf)) < 0) {
             return ;
         }
-        EndPoint::s_local_ip = hostname2ip(buf);
+        printf("get ip = %s\n", buf);
+        EndPoint::s_local_ip = hostname2ip("");
     }
 } dummy;
 
