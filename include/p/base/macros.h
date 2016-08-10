@@ -4,29 +4,29 @@
 #pragma once
 
 #if defined(__GNUC__) && __GNUC__ >= 4
-    #define LIKELY(x)   (__builtin_expect((x), 1))
-    #define UNLIKELY(x) (__builtin_expect((x), 0))
+#define LIKELY(x) (__builtin_expect((x), 1))
+#define UNLIKELY(x) (__builtin_expect((x), 0))
 #else
-    #define LIKELY(x)   (x)
-    #define UNLIKELY(x) (x)
+#define LIKELY(x) (x)
+#define UNLIKELY(x) (x)
 #endif
 
-#define DISALLOW_COPY(TypeName)                 \
-    private:                                    \
-    TypeName(const TypeName&)  = delete;        \
-    TypeName(const TypeName&&) = delete;        \
-    void operator=(const TypeName&) = delete;   \
-    void operator=(const TypeName&&) = delete
+#define DISALLOW_COPY(TypeName)                                                \
+private:                                                                       \
+  TypeName(const TypeName &) = delete;                                         \
+  TypeName(const TypeName &&) = delete;                                        \
+  void operator=(const TypeName &) = delete;                                   \
+  void operator=(const TypeName &&) = delete
 
 #ifdef __linux__
-    #define OS_LINUX
+#define OS_LINUX
 #elif __unix || __unix__
-    #define OS_UNIX
+#define OS_UNIX
 #elif __APPLE__ || __MACH__
-    #define OS_MAC
+#define OS_MAC
 #elif __FreeBSD__
-    #define OS_FREEBSD
+#define OS_FREEBSD
 #else
-    #define OS_UNKNOWN
+#define OS_UNKNOWN
 static_assert(false, "CANNOT DETECT OS TYPE.");
 #endif

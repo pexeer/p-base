@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <netinet/in.h>     // in_addr, INADDR_NONE, INADDR_ANY
+#include <netinet/in.h> // in_addr, INADDR_NONE, INADDR_ANY
 
 namespace p {
 namespace base {
@@ -21,34 +21,29 @@ in_addr_t str2ip(const char *ip_str);
 // sizeof(EndPoint) == 8
 class EndPoint {
 public:
-    EndPoint() {}
+  EndPoint() {}
 
-    // convert 'www.google.com:8080' to EndPoint
-    explicit EndPoint(const char *ip_port);
+  // convert 'www.google.com:8080' to EndPoint
+  explicit EndPoint(const char *ip_port);
 
-    EndPoint(const char *ip, short port) {
-        port_ = port;
-        ip_  = hostname2ip(ip);
-    }
+  EndPoint(const char *ip, short port) {
+    port_ = port;
+    ip_ = hostname2ip(ip);
+  }
 
-    explicit operator bool() const {
-        return ip_ != INADDR_NONE;
-    }
+  explicit operator bool() const { return ip_ != INADDR_NONE; }
 
-    unsigned short port() const {
-        return port_;
-    }
+  unsigned short port() const { return port_; }
 
-    in_addr_t ip() const {
-        return ip_;
-    }
+  in_addr_t ip() const { return ip_; }
 
 public:
-    static in_addr_t    s_local_ip;
+  static in_addr_t s_local_ip;
+
 private:
-    // typeof(in_addr.s_addr) is in_addr_t
-    in_addr_t               ip_ = INADDR_NONE;  // net byte order
-    unsigned short          port_ = 0;          // host byte order
+  // typeof(in_addr.s_addr) is in_addr_t
+  in_addr_t ip_ = INADDR_NONE; // net byte order
+  unsigned short port_ = 0;    // host byte order
 };
 
 } // end namespace base

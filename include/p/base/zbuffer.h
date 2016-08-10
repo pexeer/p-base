@@ -8,9 +8,7 @@ namespace base {
 
 class ZBuffer {
 public:
-
 private:
-
 private:
 };
 
