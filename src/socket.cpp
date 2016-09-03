@@ -7,7 +7,7 @@
 namespace p {
 namespace base {
 
-bool Socket::connect(const EndPoint &endpoint) {
+bool Socket::Connect(const EndPoint &endpoint) {
   fd_ = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   if (fd_ < 0) {
     return false;
@@ -26,7 +26,7 @@ bool Socket::connect(const EndPoint &endpoint) {
   return true;
 }
 
-bool Socket::listen(const EndPoint &endpoint) {
+bool Socket::Listen(const EndPoint &endpoint) {
   fd_ = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   if (fd_ < 0) {
     return false;

@@ -8,7 +8,7 @@ namespace p {
 namespace base {
 
 class Buffer {
-public:
+ public:
   Buffer() {}
 
   ~Buffer() {
@@ -37,14 +37,14 @@ public:
 
   void clear() { cur_ = buffer_; }
 
-  const char *c_str() {
+  const char* c_str() {
     if (buffer_) {
       *(cur_ + 1) = '\0';
     }
     return buffer_;
   }
 
-  void append(const char *buf, size_t len) {
+  void append(const char* buf, size_t len) {
     if (len <= avial()) {
       ::memcpy(cur_, buf, len);
       cur_ += len;
@@ -65,10 +65,10 @@ public:
 
   void reserve(size_t cap) {}
 
-private:
+ private:
   void _resize(size_t new_size) {
     size_t now_size = size();
-    char *tmp = (char *)malloc(new_size);
+    char* tmp = (char*)malloc(new_size);
     ::memcpy(tmp, buffer_, now_size);
     free(buffer_);
     buffer_ = tmp;
@@ -76,71 +76,13 @@ private:
     end_ = buffer_ + new_size;
   }
 
-private:
-  char *buffer_ = nullptr;
-  char *cur_ = nullptr;
-  char *end_ = nullptr;
+ private:
+  char* buffer_ = nullptr;
+  char* cur_ = nullptr;
+  char* end_ = nullptr;
   DISALLOW_COPY(Buffer);
 };
 
-template <int N> class StackBuffer {
-public:
-  StackBuffer() {}
-
-  ~StackBuffer() {
-    if (buffer_) {
-      free(buffer_);
-    }
-  }
-
-  void reset() {
-    cur_ = data_;
-    end_ = nullptr;
-    free(buffer_);
-    buffer_ = nullptr;
-  }
-
-  void clear() {
-    if (buffer_) {
-      cur_ = buffer_;
-    } else {
-      cur_ = data_;
-    }
-  }
-
-  int capacity() const {
-    if (buffer_) {
-      return end_ - buffer_;
-    }
-    return N;
-  }
-
-  int avial() const {
-    // reserve a byte for NULL
-    if (buffer_) {
-      return end_ - cur_ - 1;
-    }
-    // return static_cast<int>(reinterpret_cast<const char*>(&cur_) - cur_ - 1);
-    return data_ + N - cur_ - 1;
-  }
-
-  int append(const char *buf, int len) {
-    if (len <= avial()) {
-      ::memcpy(cur_, buf, len);
-      cur_ += len;
-      return len;
-    }
-  }
-
-private:
-private:
-  char data_[N];
-  char *cur_ = data_;
-  char *buffer_ = nullptr;
-  char *end_ = nullptr;
-  DISALLOW_COPY(StackBuffer);
-};
-
-} // end namespace base
-} // end namespace p
+}  // end namespace base
+}  // end namespace p
 

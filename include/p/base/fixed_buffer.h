@@ -5,6 +5,7 @@
 #pragma once
 #include "p/base/macros.h" // DISALLOW_COPY
 #include <stdarg.h>        // va_list
+#include <stdio.h>         // vsnprintf
 #include <string.h>        // memcpy, strlen
 
 namespace p {
@@ -56,7 +57,7 @@ public:
     if (n <= 0) {
       return 0;
     }
-    int ret = vsnprintf(cur_, n + 1, fmt, argptr);
+    int ret = ::vsnprintf(cur_, n + 1, fmt, argptr);
     if (ret < 0) {
       return 0;
     }
@@ -92,7 +93,7 @@ public:
     return data_;
   }
 
-private:
+protected:
   char data_[N];
   char *cur_ = data_;
   DISALLOW_COPY(FixedBuffer);

@@ -14,81 +14,88 @@ namespace base {
 // copy code from muduo, https://github.com/chenshuo/muduo
 
 //{"TRACE", "DEBUG", "INFO ", "WARN ", "ERROR", "FATAL"};
-enum class LogLevel { TRACE, DEBUG, INFO, WARN, ERROR, FATAL, COUNT_LOG_LEVEL };
+enum class LogLevel {
+  kTrace,
+  kDebug,
+  kInfo,
+  kWarn,
+  kError,
+  kFatal,
+  kLogLevelCount,
+};
 
 class LogStream : public SmallFixedBuffer {
 public:
-  typedef LogStream self;
+  typedef LogStream self_type;
   static constexpr int kMaxNumericSize = 24;
 
   LogStream() {}
 
-  self &operator<<(bool v) {
-    append(v ? '1' : '0');
-    return *this;
-  }
-
-  self &operator<<(char v) {
-    append(v);
-    return *this;
-  }
-
-  self &operator<<(short v) {
+  self_type &operator<<(short v) {
     _AppendInteger(v);
     return *this;
   }
 
-  self &operator<<(unsigned short v) {
+  self_type &operator<<(unsigned short v) {
     _AppendInteger(v);
     return *this;
   }
 
-  self &operator<<(int v) {
+  self_type &operator<<(int v) {
     _AppendInteger(v);
     return *this;
   }
 
-  self &operator<<(unsigned int v) {
+  self_type &operator<<(unsigned int v) {
     _AppendInteger(v);
     return *this;
   }
 
-  self &operator<<(long v) {
+  self_type &operator<<(long v) {
     _AppendInteger(v);
     return *this;
   }
 
-  self &operator<<(unsigned long v) {
+  self_type &operator<<(unsigned long v) {
     _AppendInteger(v);
     return *this;
   }
 
-  self &operator<<(long long v) {
+  self_type &operator<<(long long v) {
     _AppendInteger(v);
     return *this;
   }
 
-  self &operator<<(unsigned long long v) {
+  self_type &operator<<(unsigned long long v) {
     _AppendInteger(v);
     return *this;
   }
 
-  self &operator<<(float v) {
+  self_type &operator<<(float v) {
     *this << static_cast<double>(v);
     return *this;
   }
 
-  self &operator<<(long double v) {
+  self_type &operator<<(long double v) {
     appendf("%LF", v);
     return *this;
   }
 
-  self &operator<<(double v) {
+  self_type &operator<<(double v) {
     appendf("%F", v);
     return *this;
   }
 
-  self &operator<<(const void *v) {
+  self_type &operator<<(const char *str) {
+    if (str != nullptr) {
+      append(str);
+    } else {
+      append("null");
+    }
+    return *this;
+  }
+
+  self_type &operator<<(const void *v) {
     constexpr int kMaxPointerSize = 2 * sizeof(const void *) + 2;
     if (avial() >= kMaxPointerSize) {
       add(ConvertPointer(cur(), v));
@@ -96,13 +103,31 @@ public:
     return *this;
   }
 
-  self &operator<<(const char *str) {
-    if (str != nullptr) {
-      append(str);
-    } else {
-      append("null");
-    }
+  self_type &operator<<(bool v) {
+    append(v ? '1' : '0');
     return *this;
+  }
+
+  self_type &operator<<(char v) {
+    append(v);
+    return *this;
+  }
+
+  self_type &operator<<(self_type &(*func)(self_type &)) { return (*func)(*this); }
+
+  void noflush() { auto_flush_ = false; }
+
+  void Reset(const char *buf, int len) {
+    ::memcpy(data_, buf, len);
+    cur_ = data_ + len;
+  }
+
+  void Sink() {
+    if (auto_flush_) {
+      printf("%s\n", data_);
+      reset();
+    }
+    auto_flush_ = true;
   }
 
 private:
@@ -113,29 +138,39 @@ private:
   }
 
 private:
-  LogLevel log_level_;
-  int file_line_;
-  const char *file_name_;
-  bool flush_ = true;
+  bool auto_flush_ = true;
   DISALLOW_COPY(LogStream);
+};
+
+inline LogStream &noflush(LogStream &logstream) {
+  printf("fck\n");
+  logstream.noflush();
+  return logstream;
+}
+
+class ThreadNumber {
+public:
+  static const char *c_str();
+
+  static uint64_t tid();
+
+protected:
+  // Disable user to create ThreadNumber instace
+  ThreadNumber() {}
+
+private:
+  DISALLOW_COPY(ThreadNumber);
 };
 
 class Logger {
 public:
-  explicit Logger(LogLevel i) {
-    thread_local static LogStream tls_log_stream;
-    constexpr const char *LogLevelName[] = {"TRACE", "DEBUG", "INFO ",
-                                            "WARN ", "ERROR", "FATAL"};
-    tls_log_stream.append(LogLevelName[static_cast<int>(i)]);
-    log_stream_ = &tls_log_stream;
-  }
+  Logger() {}
 
-  LogStream &stream() { return *log_stream_; }
+  LogStream &stream(LogLevel i, const char *file, int line);
 
-  ~Logger() { printf("%s\n", log_stream_->c_str()); }
+  ~Logger();
 
 private:
-  LogStream *log_stream_;
   DISALLOW_COPY(Logger);
 };
 

@@ -15,17 +15,17 @@ class Socket {
 public:
   Socket() {}
 
-  bool connect(const EndPoint &endpoint);
+  bool Connect(const EndPoint &endpoint);
 
-  bool listen(const EndPoint &endpoint);
+  bool Listen(const EndPoint &endpoint);
 
-  bool accept(Socket &new_s);
+  bool Accept(Socket &new_s);
 
-  ssize_t write(const void *buf, size_t count) {
+  ssize_t Write(const void *buf, size_t count) {
     return ::write(fd_, buf, count);
   }
 
-  ssize_t read(void *buf, size_t count) { return ::read(fd_, buf, count); }
+  ssize_t Read(void *buf, size_t count) { return ::read(fd_, buf, count); }
 
   ~Socket() {
     if (fd_ >= 0) {

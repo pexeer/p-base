@@ -3,16 +3,23 @@
 # Wed Sep  9 19:45:01 CST 2015
 
 STD=-std=c++11
-#WARNING=-Wall -Werror
+WARNING=-Wall -Werror
 DEBUG=-g -ggdb
-#OPT=-O3
+OPT=-O3
+BUILD_DIR ?= ./build
+SRC_DIRS ?= ./src
 
-#CC=gcc-mp-5
-#CXX=g++-mp-5
-#CC=clang-mp-3.9
-#CXX=clang++-mp-3.9
-FINAL_CFLAGS=$(WARNING) $(OPT) $(DEBUG) $(CFLAGS)
-FINAL_CXXFLAGS=$(STD) $(WARNING) $(OPT) $(DEBUG) $(CFLAGS) -I./include
+SRCS := $(shell find $(SRC_DIRS) -name \*.cpp -or -name \*.c -or -name \*.s)
+OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
+DEPS := $(OBJS:.o=.d)
+INC_DIRS := $(shell find $(SRC_DIRS) -type d)
+INC_FLAGS := $(shell for subdir in $(INC_DIRS);do mkdir -p $(BUILD_DIR)/$${subdir}; done)
+INC_FLAGS := $(addprefix -I,$(INC_DIRS))
+#CPPFLAGS=-I./include -MMD -MP
+CPPFLAGS=-I./include
+FINAL_ASFLAGS=$(ASFLAGS)
+FINAL_CFLAGS=$(WARNING) $(OPT) $(DEBUG) $(CFLAGS) $(CPPFLAGS)
+FINAL_CXXFLAGS=$(STD) $(WARNING) $(OPT) $(DEBUG) $(CPPFLAGS) $(CXXFLAGS) $(CFLAGS)
 FINAL_LDFLAGS=$(LDFLAGS)  $(DEBUG)
 FINAL_LIBS=-lm -ldl -pthread
 
@@ -26,31 +33,38 @@ ENDCOLOR="\033[0m"
 ifndef V
 QUIET_C = @printf '    %b %b\n' $(CCCOLOR)CXX$(ENDCOLOR) $(SRCCOLOR)$@$(ENDCOLOR) 1>&2;
 QUIET_LINK = @printf '%b %b\n' $(LINKCOLOR)LINK$(ENDCOLOR) $(BINCOLOR)$@$(ENDCOLOR) 1>&2;
+QUIET_AR = @printf '%b %b\n' $(LINKCOLOR)AR$(ENDCOLOR) $(BINCOLOR)$@$(ENDCOLOR) 1>&2;
 endif
 
+P_AS=$(QUIET_C)$(CC) $(FINAL_ASFLAGS)
 P_CC=$(QUIET_C)$(CC) $(FINAL_CFLAGS)
 P_CXX=$(QUIET_C)$(CXX) $(FINAL_CXXFLAGS)
-P_LD=$(QUIET_LINK)$(CXX) $(FINAL_LDFLAGS)
+P_LINK=$(QUIET_LINK)$(CXX) $(FINAL_LDFLAGS)
+P_AR=$(QUIET_AR)$(AR) cr
 
-p-base.a: src/utils.o src/endpoint.o src/socket.o
-	ar cr $@ $^
+.PHONY: all clean
 
-src/%.o: src/%.cpp
-	$(P_CXX) -o $@ -c $< -I./include
+$(BUILD_DIR)/p-base.a: $(OBJS)
+	$(P_AR) $@ $^
 
-%.o: %.c
-	$(P_CC) -c $<
+# dependency
+-include $(DEPS)
 
-%.o: %.cpp
-	$(P_CXX) -c $<
+# assembly
+$(BUILD_DIR)/%.s.o: %.s
+	$(P_AS) -c $< -o $@
 
-%.exe: %.o p-base.a
-	$(P_LD) -o $@ $^  $(FINAL_LIBS) p-base.a
+# c source
+$(BUILD_DIR)/%.c.o: %.c
+	$(P_CC) -c $< -o $@
 
-all:
-	@echo 'make target'
+# c++ source
+$(BUILD_DIR)/%.cpp.o: %.cpp
+	$(P_CXX) -c $< -o $@
+
+# exe binary
+%.exe: $(BUILD_DIR)/%.cpp.o $(BUILD_DIR)/p-base.a
+	$(P_LINK) -o $@ $^
 
 clean:
-	rm -rf src/*.o *.o *.exe *.a
-	@echo clean done
-
+	$(RM) -r $(BUILD_DIR)
