@@ -39,7 +39,7 @@ endif
 P_AS=$(QUIET_C)$(CC) $(FINAL_ASFLAGS)
 P_CC=$(QUIET_C)$(CC) $(FINAL_CFLAGS)
 P_CXX=$(QUIET_C)$(CXX) $(FINAL_CXXFLAGS)
-P_LINK=$(QUIET_LINK)$(CXX) $(FINAL_LDFLAGS)
+P_LINK=$(QUIET_LINK)$(CXX) $(FINAL_LDFLAGS) $(FINAL_LIBS)
 P_AR=$(QUIET_AR)$(AR) cr
 
 .PHONY: all clean
@@ -68,3 +68,4 @@ $(BUILD_DIR)/%.cpp.o: %.cpp
 
 clean:
 	$(RM) -r $(BUILD_DIR)
+	$(RM) -r *.exe
