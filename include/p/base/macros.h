@@ -28,5 +28,10 @@ private:                                                                       \
 #define OS_FREEBSD
 #else
 #define OS_UNKNOWN
-static_assert(false, "CANNOT DETECT OS TYPE.");
+static_assert(false, "detect os type error.");
 #endif
+
+#define CACHELINE_SIZE 64
+#define CACHELINE_ALIGNMENT __attribute__((aligned(CACHELINE_SIZE)))
+
+

@@ -11,7 +11,6 @@ namespace base {
 template <class T> class LinkedQueue {
 public:
   LinkedQueue() {
-    dummy_.next = nullptr;
     tail_ = &dummy_;
     head_ = &dummy_;
     dummy_.next = nullptr;
@@ -19,25 +18,18 @@ public:
 
   void push_back(T *node) {
     node->next = nullptr;
-    T *p = tail_.load(std::memory_order_relaxed);
-    T *old_tail = p;
-    T *dummy = nullptr;
+    T *p;
     do {
-      while (p->next) {
-        p = p->next;
-      }
-      //} while (std::atomic_compare_exchange(p.next, nullptr, node));
-    } while (p->next.compare_exchange_weak(dummy, node,
-                                           std::memory_order_release,
-                                           std::memory_order_relaxed) == false);
-    tail_.compare_exchange_weak(old_tail, node, std::memory_order_release,
-                                std::memory_order_relaxed);
+      p = tail_;
+    } while (tail_.compare_exchange_weak(p, node, std::memory_order_release,
+                                         std::memory_order_relaxed) == false);
+    p->next = node;
   }
 
   T *pop_front() {
     T *p;
     do {
-      p = head_.load(std::memory_order_relaxed);
+      p = head_;
       if (p->next == nullptr) {
         return nullptr;
       }

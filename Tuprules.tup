@@ -1,0 +1,13 @@
+.gitignore
+BUILD=$(TUP_CWD)/build.tup/
+INCLUDE=$(TUP_CWD)/include/
+
+CXXFLAGS=-std=c++11 -Wall -Werror -ggdb3 -pthread
+CXXFLAGS+=-O3
+CXXFLAGS+=-I$(INCLUDE)
+LDFLAGS=-ggdb3 -lpthread
+CXX = g++
+LD = g++
+!cxx = |> ^ CXX %f^ $(CXX) $(CXXFLAGS) -c %f -o %o |> $(BUILD)/%B.o
+!ar = |> ^ AR %o^ ar crs %o %f |>
+!ld = |> ^ LD %o^ $(LD) %f -o %o $(LDFLAGS) |>

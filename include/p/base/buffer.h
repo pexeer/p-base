@@ -8,7 +8,7 @@ namespace p {
 namespace base {
 
 class Buffer {
- public:
+public:
   Buffer() {}
 
   ~Buffer() {
@@ -37,14 +37,14 @@ class Buffer {
 
   void clear() { cur_ = buffer_; }
 
-  const char* c_str() {
+  const char *c_str() {
     if (buffer_) {
       *(cur_ + 1) = '\0';
     }
     return buffer_;
   }
 
-  void append(const char* buf, size_t len) {
+  void append(const char *buf, size_t len) {
     if (len <= avial()) {
       ::memcpy(cur_, buf, len);
       cur_ += len;
@@ -65,10 +65,10 @@ class Buffer {
 
   void reserve(size_t cap) {}
 
- private:
+private:
   void _resize(size_t new_size) {
     size_t now_size = size();
-    char* tmp = (char*)malloc(new_size);
+    char *tmp = (char *)malloc(new_size);
     ::memcpy(tmp, buffer_, now_size);
     free(buffer_);
     buffer_ = tmp;
@@ -76,13 +76,13 @@ class Buffer {
     end_ = buffer_ + new_size;
   }
 
- private:
-  char* buffer_ = nullptr;
-  char* cur_ = nullptr;
-  char* end_ = nullptr;
+private:
+  char *buffer_ = nullptr;
+  char *cur_ = nullptr;
+  char *end_ = nullptr;
   DISALLOW_COPY(Buffer);
 };
 
-}  // end namespace base
-}  // end namespace p
+} // end namespace base
+} // end namespace p
 

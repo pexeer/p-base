@@ -113,7 +113,9 @@ public:
     return *this;
   }
 
-  self_type &operator<<(self_type &(*func)(self_type &)) { return (*func)(*this); }
+  self_type &operator<<(self_type &(*func)(self_type &)) {
+    return (*func)(*this);
+  }
 
   void noflush() { auto_flush_ = false; }
 
