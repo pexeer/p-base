@@ -10,6 +10,7 @@
 namespace p {
 namespace base {
 
+constexpr int kMaxNumericSize = 24;
 // Efficient Integer to String Conversions, by Matthew Wilson.
 // copy code from muduo, https://github.com/chenshuo/muduo
 template <typename T> size_t ConvertInteger(char *buf, T value) {

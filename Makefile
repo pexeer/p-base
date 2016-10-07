@@ -5,7 +5,7 @@
 STD=-std=c++11
 WARNING=-Wall -Werror
 DEBUG=-g -ggdb
-OPT=-O3
+#OPT=-O3
 BUILD_DIR ?= ./build
 SRC_DIRS ?= ./src
 
@@ -40,7 +40,7 @@ P_AS=$(QUIET_C)$(CC) $(FINAL_ASFLAGS)
 P_CC=$(QUIET_C)$(CC) $(FINAL_CFLAGS)
 P_CXX=$(QUIET_C)$(CXX) $(FINAL_CXXFLAGS)
 P_LINK=$(QUIET_LINK)$(CXX) $(FINAL_LDFLAGS) $(FINAL_LIBS)
-P_AR=$(QUIET_AR)$(AR) cr
+P_AR=$(QUIET_AR)$(AR) crs
 
 .PHONY: all clean
 

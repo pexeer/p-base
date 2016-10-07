@@ -33,5 +33,7 @@ static_assert(false, "detect os type error.");
 
 #define CACHELINE_SIZE 64
 #define CACHELINE_ALIGNMENT __attribute__((aligned(CACHELINE_SIZE)))
-
+#define PTR_ALIGNMENT(ptr) (((uintptr_t)(ptr) + (uintptr_t)(7)) & ~((uintptr_t)(7)))
+#define PTR_CACHELINE_ALIGNMENT(ptr) (((uintptr_t)(ptr) + (uintptr_t)(CACHELINE_SIZE - 1))\
+    & ~((uintptr_t)(CACHELINE_SIZE - 1)))
 
