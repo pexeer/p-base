@@ -26,6 +26,13 @@ public:
   // convert 'www.google.com:8080' to EndPoint
   explicit EndPoint(const char *ip_port);
 
+  explicit EndPoint(uint64_t node)
+      : ip_(node >> 32), port_((node & 0xFFFFFFFF) >> 16) {}
+
+  uint64_t node() const {
+    return ((uint64_t(ip_) << 32) | (uint64_t(port_) << 16));
+  }
+
   EndPoint(const char *ip, short port) {
     port_ = port;
     ip_ = hostname2ip(ip);
