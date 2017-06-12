@@ -21,17 +21,14 @@ in_addr_t str2ip(const char *ip_str);
 // sizeof(EndPoint) == 8
 class EndPoint {
 public:
-  EndPoint() {}
+  EndPoint() { ip_ = INADDR_NONE; }
 
-  // convert 'www.google.com:8080' to EndPoint
+  // parse 'www.google.com:8080' to EndPoint
   explicit EndPoint(const char *ip_port);
 
-  explicit EndPoint(uint64_t node)
-      : ip_(node >> 32), port_((node & 0xFFFFFFFF) >> 16) {}
+  explicit EndPoint(uint64_t node) : node_(node) {}
 
-  uint64_t node() const {
-    return ((uint64_t(ip_) << 32) | (uint64_t(port_) << 16));
-  }
+  uint64_t node() const { return node_; }
 
   EndPoint(const char *ip, short port) {
     port_ = port;
@@ -44,13 +41,20 @@ public:
 
   in_addr_t ip() const { return ip_; }
 
-public:
+  static in_addr_t local_ip() { return s_local_ip; }
+
+protected:
   static in_addr_t s_local_ip;
 
 private:
-  // typeof(in_addr.s_addr) is in_addr_t
-  in_addr_t ip_ = INADDR_NONE; // net byte order
-  unsigned short port_ = 0;    // host byte order
+  union {
+    uint64_t node_;
+    struct {
+      // typeof(in_addr.s_addr) is in_addr_t
+      in_addr_t ip_;            // net byte order
+      unsigned short port_ = 0; // host byte order
+    };
+  };
 };
 
 } // end namespace base

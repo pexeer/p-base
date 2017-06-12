@@ -92,7 +92,8 @@ EndPoint::EndPoint(const char *ip_port) {
   ip_ = INADDR_NONE;
 }
 
-class Dummy {
+namespace {
+class Dummy : public EndPoint {
 public:
   Dummy() {
     char buf[512];
@@ -101,7 +102,8 @@ public:
     }
     EndPoint::s_local_ip = hostname2ip(buf);
   }
-} dummy;
+} g_dummy;
+} // end of anonymous namespace
 
 } // end namespace base
 } // end namespace p
