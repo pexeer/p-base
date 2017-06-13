@@ -81,7 +81,7 @@ private:
   char *cur_ = nullptr;
   char *end_ = nullptr;
 
-  DISALLOW_COPY(Buffer);
+  P_DISALLOW_COPY(Buffer);
 };
 
 } // end namespace base

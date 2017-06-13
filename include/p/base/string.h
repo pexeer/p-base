@@ -17,7 +17,7 @@ public:
 private:
     char*   data_;
     size_t  len_;
-  DISALLOW_COPY(String);
+    P_DISALLOW_COPY(String);
 };
 
 } // end namespace base

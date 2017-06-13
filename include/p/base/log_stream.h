@@ -120,7 +120,7 @@ private:
 
 private:
   bool auto_flush_ = true;
-  DISALLOW_COPY(LogStream);
+  P_DISALLOW_COPY(LogStream);
 };
 
 inline LogStream &noflush(LogStream &logstream) {
@@ -138,5 +138,5 @@ public:
   ~Logger();
 
 private:
-  DISALLOW_COPY(Logger);
+  P_DISALLOW_COPY(Logger);
 };

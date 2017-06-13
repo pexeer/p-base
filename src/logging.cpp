@@ -2,14 +2,13 @@
 // Licensed under a BSD-style license that can be found in the LICENSE file.
 
 #include "p/base/logging.h"
-#include "p/base/date.h"
+
 #include <atomic>
 #include <chrono>
-#include <condition_variable>
-#include <sys/syscall.h> // syscall
 #include <thread>        // sth::thread
-#include <thread>
-#include <unistd.h> // SYS_gettid
+#include <condition_variable>
+#include "p/base/date.h"
+#include "p/base/port.h"
 
 namespace p {
 namespace base {
@@ -19,8 +18,7 @@ thread_local static LogStream tls_log_stream;
 class ThreadNumberImpl {
 public:
   ThreadNumberImpl() {
-    // ::gettid()
-    tid_ = static_cast<pid_t>(::syscall(SYS_gettid));
+    tid_ = gettid();
     size_ = ConvertInteger(name_, tid_);
   }
 
