@@ -141,7 +141,7 @@ private:
 
 private:
   bool auto_flush_ = true;
-  DISALLOW_COPY(LogStream);
+  P_DISALLOW_COPY(LogStream);
 };
 
 inline LogStream &noflush(LogStream &logstream) {
@@ -159,7 +159,7 @@ public:
   static uint64_t tid();
 
 private:
-  DISALLOW_COPY(ThreadNumber);
+  P_DISALLOW_COPY(ThreadNumber);
 };
 
 class Logger {
@@ -171,7 +171,7 @@ public:
   ~Logger();
 
 private:
-  DISALLOW_COPY(Logger);
+  P_DISALLOW_COPY(Logger);
 };
 
 class LogGenerator {
@@ -348,7 +348,7 @@ private:
   char *cur_;
   char *end_;
   bool auto_flush_ = true;
-  DISALLOW_COPY(LogGenerator);
+  P_DISALLOW_COPY(LogGenerator);
 };
 
 class FastLogger {
@@ -360,7 +360,7 @@ public:
   ~FastLogger();
 
 private:
-  DISALLOW_COPY(FastLogger);
+  P_DISALLOW_COPY(FastLogger);
 };
 
 } // end namespace base

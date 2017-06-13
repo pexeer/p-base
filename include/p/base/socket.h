@@ -40,7 +40,7 @@ private:
   int st_;
 
 private:
-  DISALLOW_COPY(Socket);
+  P_DISALLOW_COPY(Socket);
 };
 
 } // end namespace base

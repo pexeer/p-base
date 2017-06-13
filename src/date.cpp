@@ -3,6 +3,7 @@
 
 #include "p/base/date.h"
 #include "p/base/utils.h"
+#include "p/base/time.h"
 
 //#define LOG_TIME_TO_US
 
@@ -101,7 +102,7 @@ private:
   uint32_t time_us_;
   char formatted_[28];
 
-  DISALLOW_COPY(DateImpl);
+  P_DISALLOW_COPY(DateImpl);
 };
 
 // thread cached DateImpl

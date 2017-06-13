@@ -16,7 +16,7 @@ public:
   static int size();
 
 private:
-  DISALLOW_COPY(Date);
+  P_DISALLOW_COPY(Date);
 };
 
 } // end namespace base

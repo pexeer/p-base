@@ -3,9 +3,13 @@
 
 #include "p/base/logging.h"
 #include "p/base/date.h"
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
 #include <sys/syscall.h> // syscall
 #include <thread>        // sth::thread
-#include <unistd.h>      // SYS_gettid
+#include <thread>
+#include <unistd.h> // SYS_gettid
 
 namespace p {
 namespace base {
@@ -69,7 +73,7 @@ inline void LogGenerator::Sink() {
     log_->data_len = cur_ - log_->data;
     // submit current log: log_
     g_sinking_queue.push_back(log_);
-    cur_ = (char *)(PTR_CACHELINE_ALIGNMENT(cur_));
+    cur_ = (char *)(P_PTR_CACHELINE_ALIGNMENT(cur_));
 
     // prepare for next log
     log_ = reinterpret_cast<LogEntry *>(cur_);
@@ -89,32 +93,56 @@ public:
     int buffer_len;
     int retry_times;
   };
-  static constexpr size_t kBufferLen = 128 * 1024L;
-  static constexpr int kMaxBufferNum = 1024;
-  LogBufferManager() : total_buffer_number_(0) {
+
+  static constexpr size_t kBufferLen = 1024 * 8;
+  static constexpr int kMaxBufferNum = 1024 * 8;
+
+  LogBufferManager() : total_buffer_number_(0), free_buffer_number_(0) {
     add_buffer(100);
     alloc_buffer(); // pop dummy Node
   }
 
   BufferEntry *alloc_buffer() {
+    if (free_buffer_number_ < (kMaxBufferNum >> 3)) {
+      notify_one();
+    }
+
     BufferEntry *p;
     int retry_times = 0;
     while ((p = free_buffer_queue_.pop_front()) == nullptr) {
       if (total_buffer_number_ < kMaxBufferNum) {
         add_buffer(10);
       } else {
+        // signal log sink thread
+        // notify_one();
         // yield this thread
         ++retry_times;
         std::this_thread::yield();
       }
     }
+
     p->buffer_len = kBufferLen;
     p->retry_times = retry_times;
+    --free_buffer_number_;
     return p;
   }
 
-  void free_buffer(BufferEntry *p) { free_buffer_queue_.push_back(p); }
+  void free_buffer(BufferEntry *p) {
+    free_buffer_queue_.push_back(p);
+    ++free_buffer_number_;
+  }
 
+  void notify_one() {
+    std::lock_guard<std::mutex> lock_guard(buffer_mutex_);
+    buffer_condition_.notify_one();
+  }
+
+  void wait_for() {
+    std::unique_lock<std::mutex> unique_lock(buffer_mutex_);
+    buffer_condition_.wait_for(unique_lock, std::chrono::milliseconds(200));
+  }
+
+private:
   void add_buffer(int num) {
     char *buffer = (char *)malloc(kBufferLen * num);
     for (int i = 0; i < num; ++i) {
@@ -124,11 +152,16 @@ public:
       free_buffer_queue_.push_back(node);
     }
     total_buffer_number_ += num;
+    free_buffer_number_ += num;
   }
 
 private:
   std::atomic<int> total_buffer_number_;
+  std::atomic<int> free_buffer_number_;
   LinkedQueue<BufferEntry> free_buffer_queue_;
+
+  std::mutex buffer_mutex_;
+  std::condition_variable buffer_condition_;
 };
 
 LinkedQueue<LogGenerator::LogEntry> LogGenerator::g_sinking_queue;
@@ -190,8 +223,8 @@ FastLogger::~FastLogger() {
 class LogSinkThread {
 public:
   LogSinkThread() : log_sinker_(work) {
-    // g_fd = fopen("x.log", "wa");
     g_fd = stdout;
+    g_fd = fopen("x.log", "wa");
   }
 
   ~LogSinkThread() {
@@ -207,10 +240,10 @@ private:
         LogGenerator::g_sinking_queue;
     LogGenerator::LogEntry *p;
     LogGenerator::LogEntry *cur;
+
     while (finished_ == false) {
       while ((p = g_sinking_queue.pop_front())) {
         cur = p->next;
-        // printf("%s\tlen=%d\n", cur->data, cur->data_len);
         fwrite(cur->data, 1, cur->data_len, g_fd);
         if (p->data_len == 0) {
           LogBufferManager::BufferEntry *node =
@@ -218,15 +251,16 @@ private:
           g_log_buffer_mgr.free_buffer(node);
         }
       }
-      // sleep(1);
-      std::this_thread::yield();
+
+      // try to sleep wait for more log entry
+      g_log_buffer_mgr.wait_for();
     }
+
     while ((p = g_sinking_queue.pop_front())) {
       cur = p->next;
-      // printf("%s\tlen=%d\n", cur->data, cur->data_len);
       fwrite(cur->data, 1, cur->data_len, g_fd);
     }
-    fprintf(g_fd, "Logging Stop Success.\n");
+    fprintf(g_fd, "Stop Logging Success.\n");
   }
 
   std::thread log_sinker_;

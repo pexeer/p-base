@@ -80,6 +80,7 @@ private:
   char *buffer_ = nullptr;
   char *cur_ = nullptr;
   char *end_ = nullptr;
+
   DISALLOW_COPY(Buffer);
 };
 

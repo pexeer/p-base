@@ -96,7 +96,7 @@ public:
 protected:
   char data_[N];
   char *cur_ = data_;
-  DISALLOW_COPY(FixedBuffer);
+  P_DISALLOW_COPY(FixedBuffer);
 };
 
 static constexpr int kSmallBuffer = 4000;
