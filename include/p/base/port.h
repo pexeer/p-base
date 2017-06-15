@@ -5,8 +5,9 @@
 
 #include "p/base/macros.h"
 #include <unistd.h>                 // SYS_gettid
-#include <stdlib.h>
 #include <sys/syscall.h>            // syscall
+
+#include <thread>           // pthread_threadid_np
 
 namespace p {
 namespace base {

@@ -11,10 +11,9 @@
 namespace p {
 namespace base {
 
-// fixed buffer class, mostly used to allocate a buffer from stack or global
-// static space
-// if want to allocate a buffer from heap, p::base::Buffer or std::string is
-// better
+// fixed buffer class, mostly used to allocate a buffer from
+// stack or global static space. if want to allocate a buffer
+// from heap, p::base::Buffer or std::string is better
 template <int N> class FixedBuffer {
 public:
   FixedBuffer() {}
