@@ -6,26 +6,29 @@
 #include <stdlib.h>
 #include <mutex>
 #include <thread>
+#include <condition_variable>
+
 
 #include "p/base/queue.h"
 #include "p/base/log.h"
+#include "p/base/fixed_buffer.h"
 #include "p/base/this_thread.h"
 
 namespace p {
 namespace base {
 
-int g_wf_log_min_level = static_cast<int>(LogLevel::kWarn);
+LogLevel    g_wf_log_min_level = LogLevel::kWarn;
 
 // struct LogEntry
-struct FastLogGenerator::LogEntry {
+struct FastLogStream::LogEntry {
     struct LogEntry *next;
     uint32_t data_len = 4;
     char data[4];
 };
 
-static_assert(sizeof(FastLogGenerator::LogEntry) == 16, "sizeof(LogEntry) must be power of 8");
+static_assert(sizeof(FastLogStream::LogEntry) == 16, "sizeof(LogEntry) must be power of 8");
 
-LinkedQueue<FastLogGenerator::LogEntry> g_log_entry_queue;
+LinkedQueue<FastLogStream::LogEntry> g_log_entry_queue;
 /////////////////////////////////////////////////////////
 
 // class LogBufferManager
@@ -37,8 +40,8 @@ public:
     int retry_times;
   };
 
-  static constexpr size_t kBufferLen = 1024 * 16;
-  static constexpr int kMaxBufferNum = 1024 * 2;
+  static constexpr size_t kLogBufferSize = 1024 * 16;
+  static constexpr int kLogBufferMaxNum = 1024 * 2;
 
   LogBufferManager() : total_buffer_number_(0), free_buffer_number_(0) {
     add_buffer(100);
@@ -77,9 +80,15 @@ private:
 LogBufferManager g_log_buffer_mgr;
 /////////////////////////////////////////////////////////
 
-// class FastLogGenerator
-inline void FastLogGenerator::Sink() {
+// class FastLogStream
+inline void FastLogStream::Sink() {
   if (auto_flush_) {
+      if (avial() >= source_file_.name_size() + 8) {
+          just_append(" - ", 3);
+          just_append(source_file_.file_name(), source_file_.name_size());
+          *cur_++ = ':';
+          cur_ += ConvertInteger(cur_, source_file_.file_line());
+      }
     *cur_++ = '\n';
     log_->data_len = cur_ - log_->data;
     // submit current log: log_
@@ -98,17 +107,16 @@ inline void FastLogGenerator::Sink() {
   auto_flush_ = true;
 }
 
-inline int FastLogGenerator::check_buffer() {
+inline int FastLogStream::check_buffer() {
   constexpr int kMinLogBufferSize = 1024;
   if (sentry_) {
-    if (cur_ == log_->data) {
+      if (UNLIKELY(cur_ != log_->data)) {
+          return -1;
+      }
       if (cur_ + kMinLogBufferSize < end_) {
-        return 0;
+          return 0;
       }
       g_log_entry_queue.push_back(sentry_);
-    } else {
-      return -1;
-    }
   }
 
   LogBufferManager::BufferEntry *p = g_log_buffer_mgr.alloc_buffer();
@@ -124,72 +132,109 @@ inline int FastLogGenerator::check_buffer() {
   return retry_times;
 }
 
-thread_local static FastLogGenerator tls_log_generator;
+thread_local FastLogStream tls_log_stream;
 /////////////////////////////////////////////////////////
 
-bool set_wf_log_min_level(LogLevel wf_log_min_level) {
+void default_output_func(const char* msg, int len) {
+    fwrite(msg, 1, len, stdout);
+}
+
+FastLogMessage::OutputFunc g_output_func = default_output_func;
+
+bool FastLogMessage::set_wf_log_min_level(LogLevel wf_log_min_level) {
     if (wf_log_min_level > LogLevel::kLogLevelCount) {
         return false;
     }
 
-    g_wf_log_min_level = static_cast<int>(wf_log_min_level);
+    g_wf_log_min_level = wf_log_min_level;
     return true;
 }
 
-FastLogGenerator &FastLogger::log_generator(LogLevel log_level, const char *file, int line) {
-  tls_log_generator.log_level_ = static_cast<int>(log_level);
-  int retry_times;
-  if ((retry_times = tls_log_generator.check_buffer()) >= 0) {
+void FastLogMessage::set_output_func(OutputFunc output_func) {
 
-    // add log head information
-    tls_log_generator.just_append(LogDate::get_log_date_str(), LogDate::kLogDateStrLen);
-
-    tls_log_generator.just_append(ThisThread::thread_name, ThisThread::thread_name_len);
-
-    tls_log_generator.just_append(LogLevelName[tls_log_generator.log_level_], SizeOfLogLevelName);
-    tls_log_generator.just_append(file, __builtin_strlen(file));
-    tls_log_generator << ':' << line << ' ';
-
-    //if (retry_times > 1) {
-    //  tls_log_generator << "retry=" << retry_times << "] ";
-    //}
-  }
-  return tls_log_generator;
 }
 
-FastLogger::~FastLogger() {
-  tls_log_generator.Sink();
+void FastLogMessage::set_wf_output_func(OutputFunc output_func) {
+
+}
+
+FastLogStream &FastLogMessage::log_stream(LogLevel log_level, const SourceFile &source_file) {
+  tls_log_stream.log_level_ = log_level;
+  int retry_times;
+  if ((retry_times = tls_log_stream.check_buffer()) >= 0) {
+
+    // add log head information
+    tls_log_stream.just_append(LogDate::get_log_date_str(), LogDate::kLogDateStrLen);
+
+    tls_log_stream.just_append(ThisThread::thread_name(), ThisThread::thread_name_len());
+
+    tls_log_stream.just_append(LogLevelName[int(tls_log_stream.log_level_)],
+            SizeOfLogLevelName);
+    tls_log_stream.source_file_ = source_file;
+
+#if 0
+    if (retry_times > 1) {
+        tls_log_stream << "retry=" << retry_times << ' ';
+    }
+#endif
+  }
+  return tls_log_stream;
+}
+
+FastLogMessage::~FastLogMessage() {
+  tls_log_stream.Sink();
 }
 
 class FastLogSinkThread {
 public:
-  FastLogSinkThread() : log_sinker_(work) {
-    s_fd_ = stdout;
+  FastLogSinkThread() : log_sinker_(&FastLogSinkThread::work, this) {
+      current_pos_ = flush_buffer_;
   }
 
   ~FastLogSinkThread() {
-    s_finished_ = true;
+    finished_ = true;
     log_sinker_.join();
   }
 
 private:
-  static bool s_finished_;
-  static FILE *s_fd_;
+  void append(const char* message, int len) {
+      if (current_pos_ < flush_buffer_end_) {
+          ::memcpy(current_pos_, message, len);
+          current_pos_ += len;
+          return ;
+      }
 
-  static void work() {
-    FastLogGenerator::LogEntry *p;
-    FastLogGenerator::LogEntry *cur;
+      flush();
 
-    while (s_finished_ == false) {
+      ::memcpy(current_pos_, message, len);
+      current_pos_ += len;
+      return ;
+  }
+
+  void flush() {
+      if (current_pos_ > flush_buffer_) {
+        g_output_func(flush_buffer_, current_pos_ - flush_buffer_);
+        current_pos_ = flush_buffer_;
+      }
+  }
+
+
+  void work() {
+    FastLogStream::LogEntry *p;
+    FastLogStream::LogEntry *cur;
+
+    while (finished_ == false) {
       while ((p = g_log_entry_queue.pop_front())) {
         cur = p->next;
-        fwrite(cur->data, 1, cur->data_len, s_fd_);
-        if (p->data_len == 0) {
+        append(cur->data, cur->data_len);
+        if (UNLIKELY(p->data_len == 0)) {
           LogBufferManager::BufferEntry *node =
               reinterpret_cast<LogBufferManager::BufferEntry *>(p);
           g_log_buffer_mgr.free_buffer(node);
         }
       }
+
+      flush();
 
       // try to sleep wait for more log entry
       g_log_buffer_mgr.wait_for();
@@ -197,24 +242,33 @@ private:
 
     while ((p = g_log_entry_queue.pop_front())) {
       cur = p->next;
-      fwrite(cur->data, 1, cur->data_len, s_fd_);
+      append(cur->data, cur->data_len);
     }
 
-    fprintf(s_fd_, "Stop Logging Success.\n");
+    append(cur->data, cur->data_len);
+
+    const char stop_message[] = "Stop Logging Success.\n";
+    append(stop_message, sizeof(stop_message));
+
+    // last flush before stop
+    flush();
   }
 
+private:
+  constexpr static int kFlushBufferSize = 1024 * 1024 * 4;
+  char      flush_buffer_[kFlushBufferSize];
+  char      flush_buffer_end_[LogBufferManager::kLogBufferSize];
+  char*     current_pos_;
+  bool      finished_;
   std::thread log_sinker_;
 } g_log_sinker;
 
-bool FastLogSinkThread::s_finished_ = false;
-FILE *FastLogSinkThread::s_fd_ = nullptr;
-
 inline void LogBufferManager::add_buffer(int num) {
-    char *buffer = (char *)::malloc(kBufferLen * num);
+    char *buffer = (char *)::malloc(kLogBufferSize * num);
     for (int i = 0; i < num; ++i) {
         BufferEntry *node =
-            reinterpret_cast<BufferEntry *>(buffer + i * kBufferLen);
-        // node.data_len = kBufferLen;
+            reinterpret_cast<BufferEntry *>(buffer + i * kLogBufferSize);
+        // node.data_len = kLogBufferSize;
         free_buffer_queue_.push_back(node);
     }
 
@@ -223,14 +277,14 @@ inline void LogBufferManager::add_buffer(int num) {
 }
 
 inline LogBufferManager::BufferEntry* LogBufferManager::alloc_buffer() {
-    //if (free_buffer_number_ < (kMaxBufferNum >> 3)) {
+    //if (free_buffer_number_ < (kLogBufferMaxNum >> 3)) {
     //  notify_one();
     //}
 
     BufferEntry *p;
     int retry_times = 0;
     while ((p = free_buffer_queue_.pop_front()) == nullptr) {
-      if (total_buffer_number_ < kMaxBufferNum) {
+      if (total_buffer_number_ < kLogBufferMaxNum) {
         add_buffer(10);
       } else {
         // signal log sink thread
@@ -241,12 +295,11 @@ inline LogBufferManager::BufferEntry* LogBufferManager::alloc_buffer() {
       }
     }
 
-    p->buffer_len = kBufferLen;
+    p->buffer_len = kLogBufferSize;
     p->retry_times = retry_times;
     --free_buffer_number_;
     return p;
 }
-
 
 } // end namespace base
 } // end namespace p

@@ -12,71 +12,70 @@
 namespace p {
 namespace base {
 
-class FastLogGenerator {
+class FastLogStream {
 public:
-  typedef FastLogGenerator self_type;
-
   struct LogEntry;
 
-  FastLogGenerator()
-      : sentry_(nullptr), log_(nullptr), cur_(nullptr), end_(nullptr) {}
+  FastLogStream()
+      : sentry_(nullptr), log_(nullptr), cur_(nullptr),
+      end_(nullptr), source_file_(__FILE__, __LINE__) {}
 
-  self_type &operator<<(short v) {
+  FastLogStream &operator<<(short v) {
     _AppendInteger(v);
     return *this;
   }
 
-  self_type &operator<<(unsigned short v) {
+  FastLogStream &operator<<(unsigned short v) {
     _AppendInteger(v);
     return *this;
   }
 
-  self_type &operator<<(int v) {
+  FastLogStream &operator<<(int v) {
     _AppendInteger(v);
     return *this;
   }
 
-  self_type &operator<<(unsigned int v) {
+  FastLogStream &operator<<(unsigned int v) {
     _AppendInteger(v);
     return *this;
   }
 
-  self_type &operator<<(long v) {
+  FastLogStream &operator<<(long v) {
     _AppendInteger(v);
     return *this;
   }
 
-  self_type &operator<<(unsigned long v) {
+  FastLogStream &operator<<(unsigned long v) {
     _AppendInteger(v);
     return *this;
   }
 
-  self_type &operator<<(long long v) {
+  FastLogStream &operator<<(long long v) {
     _AppendInteger(v);
     return *this;
   }
 
-  self_type &operator<<(unsigned long long v) {
+  FastLogStream &operator<<(unsigned long long v) {
     _AppendInteger(v);
     return *this;
   }
 
-  self_type &operator<<(float v) {
+  FastLogStream &operator<<(float v) {
     *this << static_cast<double>(v);
     return *this;
   }
 
-  self_type &operator<<(long double v) {
+  FastLogStream &operator<<(long double v) {
     appendf("%LF", v);
     return *this;
   }
 
-  self_type &operator<<(double v) {
+  FastLogStream &operator<<(double v) {
     appendf("%F", v);
     return *this;
   }
 
-  self_type &operator<<(const char *str) {
+  FastLogStream &operator<<(const char *str) {
     if (str) {
       append(str);
     } else {
@@ -85,7 +84,7 @@ public:
     return *this;
   }
 
-  self_type &operator<<(const void *v) {
+  FastLogStream &operator<<(const void *v) {
     constexpr int kMaxPointerSize = 2 * sizeof(const void *) + 2;
     if (avial() >= kMaxPointerSize) {
       cur_ += ConvertPointer(cur_, v);
@@ -93,17 +92,17 @@ public:
     return *this;
   }
 
-  self_type &operator<<(bool v) {
+  FastLogStream &operator<<(bool v) {
     append(v ? '1' : '0');
     return *this;
   }
 
-  self_type &operator<<(char v) {
+  FastLogStream &operator<<(char v) {
     append(v);
     return *this;
   }
 
-  self_type &operator<<(self_type &(*func)(self_type &)) {
+  FastLogStream &operator<<(FastLogStream &(*func)(FastLogStream &)) {
     return (*func)(*this);
   }
 
@@ -173,7 +172,7 @@ private:
     }
   }
 
-  friend class FastLogger;
+  friend class FastLogMessage;
 
 private:
   LogEntry *sentry_;
@@ -181,11 +180,12 @@ private:
   char *cur_;
   char *end_;
   bool auto_flush_  = true;
-  int  log_level_;
-  P_DISALLOW_COPY(FastLogGenerator);
+  LogLevel  log_level_;
+  SourceFile    source_file_;
+  P_DISALLOW_COPY(FastLogStream);
 };
 
-class FastLogger {
+class FastLogMessage {
 public:
     static bool set_wf_log_min_level(LogLevel wf_log_min_level);
 
@@ -196,14 +196,16 @@ public:
     static void set_wf_output_func(OutputFunc output_func);
 
 public:
-  FastLogger() {}
+  FastLogMessage() {}
 
-  FastLogGenerator &log_generator(LogLevel log_level, const char *file, int line);
+  //FastLogStream &log_stream(LogLevel log_level, const char *file, int line);
 
-  ~FastLogger();
+  FastLogStream &log_stream(LogLevel log_level, const SourceFile &source_file);
+
+  ~FastLogMessage();
 
 private:
-  P_DISALLOW_COPY(FastLogger);
+  P_DISALLOW_COPY(FastLogMessage);
 };
 
 } // end namespace base

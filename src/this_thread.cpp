@@ -9,21 +9,12 @@
 namespace p {
 namespace base {
 
-namespace ThisThread {
+ThisThread::ThisThread() {
+    thread_id_ = gettid();
+    thread_name_len_ = snprintf(thread_name_, sizeof(thread_name_), "%5d ", thread_id_) - 1;
+}
 
-thread_local int thread_id;
-thread_local int  thread_name_len;
-thread_local char thread_name[32];
-
-class ThisThreadImpl {
-public:
-    ThisThreadImpl() {
-        thread_id = gettid();
-        thread_name_len = snprintf(thread_name, sizeof(thread_name), "%5d ", thread_id) - 1;
-    }
-} this_thread_impl_dummy;
-
-} // end namespace ThisThread
+thread_local ThisThread tls_this_thread;
 
 } // end namespace base
 } // end namespace p

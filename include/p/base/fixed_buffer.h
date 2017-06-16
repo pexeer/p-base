@@ -21,13 +21,14 @@ public:
   void reset() { cur_ = data_; }
 
   int append(const char *buf, int len) {
-    if (len >= avial()) {
-      if (avial() > 0) {
+    if (UNLIKELY(len > avial())) {
         len = avial();
-      } else {
-        return 0;
-      }
     }
+
+    if (UNLIKELY(len <= 0)) {
+        return 0;
+    }
+
     ::memcpy(cur_, buf, len);
     cur_ += len;
     return len;
@@ -91,6 +92,8 @@ public:
     *cur_ = 0;
     return data_;
   }
+
+  int max_size() const { return N; }
 
 protected:
   char data_[N];
