@@ -87,5 +87,12 @@ private:
     int     file_line_;
 };
 
+class LogSink {
+public:
+    virtual ~LogSink() = 0;
+
+    virtual int sink(const char* msg, int len) = 0;
+};
+
 } // end namespace base
 } // end namespace p

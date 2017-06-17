@@ -4,10 +4,10 @@
 #include "p/base/fast_logger.h"
 
 #include <stdlib.h>
+#include <unistd.h>
 #include <mutex>
 #include <thread>
 #include <condition_variable>
-
 
 #include "p/base/queue.h"
 #include "p/base/log.h"
@@ -18,6 +18,17 @@ namespace p {
 namespace base {
 
 LogLevel    g_wf_log_min_level = LogLevel::kWarn;
+
+void default_output_func(const char* msg, int len) {
+    write(1, msg, len);
+}
+
+void default_wf_output_func(const char* msg, int len) {
+    write(2, msg, len);
+}
+
+FastLogMessage::OutputFunc g_output_func = default_output_func;
+FastLogMessage::OutputFunc g_wf_output_func = default_wf_output_func;
 
 // struct LogEntry
 struct FastLogStream::LogEntry {
@@ -83,7 +94,7 @@ LogBufferManager g_log_buffer_mgr;
 // class FastLogStream
 inline void FastLogStream::Sink() {
   if (auto_flush_) {
-      if (avial() >= source_file_.name_size() + 8) {
+      if (avial() >= source_file_.name_size() + 32) {
           just_append(" - ", 3);
           just_append(source_file_.file_name(), source_file_.name_size());
           *cur_++ = ':';
@@ -93,8 +104,7 @@ inline void FastLogStream::Sink() {
     log_->data_len = cur_ - log_->data;
     // submit current log: log_
     if (UNLIKELY(log_level_ >= g_wf_log_min_level)) {
-        // sync submit wf log
-        ;
+        g_wf_output_func(log_->data, log_->data_len);
     }
 
     g_log_entry_queue.push_back(log_);
@@ -107,7 +117,7 @@ inline void FastLogStream::Sink() {
   auto_flush_ = true;
 }
 
-inline int FastLogStream::check_buffer() {
+inline int FastLogStream::check_log_buffer() {
   constexpr int kMinLogBufferSize = 1024;
   if (sentry_) {
       if (UNLIKELY(cur_ != log_->data)) {
@@ -135,12 +145,6 @@ inline int FastLogStream::check_buffer() {
 thread_local FastLogStream tls_log_stream;
 /////////////////////////////////////////////////////////
 
-void default_output_func(const char* msg, int len) {
-    fwrite(msg, 1, len, stdout);
-}
-
-FastLogMessage::OutputFunc g_output_func = default_output_func;
-
 bool FastLogMessage::set_wf_log_min_level(LogLevel wf_log_min_level) {
     if (wf_log_min_level > LogLevel::kLogLevelCount) {
         return false;
@@ -151,25 +155,26 @@ bool FastLogMessage::set_wf_log_min_level(LogLevel wf_log_min_level) {
 }
 
 void FastLogMessage::set_output_func(OutputFunc output_func) {
-
+    g_output_func = output_func;
 }
 
 void FastLogMessage::set_wf_output_func(OutputFunc output_func) {
-
+    g_wf_output_func = output_func;
 }
 
 FastLogStream &FastLogMessage::log_stream(LogLevel log_level, const SourceFile &source_file) {
   tls_log_stream.log_level_ = log_level;
   int retry_times;
-  if ((retry_times = tls_log_stream.check_buffer()) >= 0) {
+  if ((retry_times = tls_log_stream.check_log_buffer()) >= 0) {
 
     // add log head information
     tls_log_stream.just_append(LogDate::get_log_date_str(), LogDate::kLogDateStrLen);
 
     tls_log_stream.just_append(ThisThread::thread_name(), ThisThread::thread_name_len());
 
-    tls_log_stream.just_append(LogLevelName[int(tls_log_stream.log_level_)],
-            SizeOfLogLevelName);
+    tls_log_stream.just_append(
+            LogLevelName[int(tls_log_stream.log_level_)], SizeOfLogLevelName);
+
     tls_log_stream.source_file_ = source_file;
 
 #if 0
@@ -213,8 +218,8 @@ private:
 
   void flush() {
       if (current_pos_ > flush_buffer_) {
-        g_output_func(flush_buffer_, current_pos_ - flush_buffer_);
-        current_pos_ = flush_buffer_;
+          g_output_func(flush_buffer_, current_pos_ - flush_buffer_);
+          current_pos_ = flush_buffer_;
       }
   }
 
@@ -223,7 +228,7 @@ private:
     FastLogStream::LogEntry *p;
     FastLogStream::LogEntry *cur;
 
-    while (finished_ == false) {
+    while (!finished_) {
       while ((p = g_log_entry_queue.pop_front())) {
         cur = p->next;
         append(cur->data, cur->data_len);
@@ -248,7 +253,7 @@ private:
     append(cur->data, cur->data_len);
 
     const char stop_message[] = "Stop Logging Success.\n";
-    append(stop_message, sizeof(stop_message));
+    append(stop_message, strlen(stop_message));
 
     // last flush before stop
     flush();

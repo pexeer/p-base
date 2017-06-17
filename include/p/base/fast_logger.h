@@ -102,17 +102,20 @@ public:
     return *this;
   }
 
-  FastLogStream &operator<<(FastLogStream &(*func)(FastLogStream &)) {
+  FastLogStream& operator<<(FastLogStream &(*func)(FastLogStream &)) {
     return (*func)(*this);
   }
 
-  void noflush() { auto_flush_ = false; }
+  FastLogStream& no_flush() {
+      auto_flush_ = false;
+      return *this;
+  }
 
 private:
   // check buffer is enaugh for a log and check buffer is using by a log
   // return -1, buffer is using, write log is not finished;
   // return >=0, buffer is ready and empty
-  int check_buffer();
+  int check_log_buffer();
 
   void Sink();
 
@@ -185,6 +188,8 @@ private:
   P_DISALLOW_COPY(FastLogStream);
 };
 
+inline FastLogStream& noflush(FastLogStream& ls) { return ls.no_flush(); }
+
 class FastLogMessage {
 public:
     static bool set_wf_log_min_level(LogLevel wf_log_min_level);
@@ -207,6 +212,7 @@ public:
 private:
   P_DISALLOW_COPY(FastLogMessage);
 };
-
 } // end namespace base
+
+using base::noflush;
 } // end namespace p
