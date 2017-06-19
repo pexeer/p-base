@@ -102,11 +102,16 @@ public:
     return *this;
   }
 
+  template<typename T>
+  FastLogStream &operator<<(const T& v) {
+      return v.print(*this);
+  }
+
   FastLogStream& operator<<(FastLogStream &(*func)(FastLogStream &)) {
     return (*func)(*this);
   }
 
-  FastLogStream& no_flush() {
+  FastLogStream& noflush() {
       auto_flush_ = false;
       return *this;
   }
@@ -188,7 +193,9 @@ private:
   P_DISALLOW_COPY(FastLogStream);
 };
 
-inline FastLogStream& noflush(FastLogStream& ls) { return ls.no_flush(); }
+typedef FastLogStream LogStream;
+
+inline FastLogStream& noflush(FastLogStream& ls) { return ls.noflush(); }
 
 class FastLogMessage {
 public:
@@ -212,7 +219,7 @@ public:
 private:
   P_DISALLOW_COPY(FastLogMessage);
 };
-} // end namespace base
 
+} // end namespace base
 using base::noflush;
 } // end namespace p

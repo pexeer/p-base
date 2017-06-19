@@ -4,6 +4,8 @@
 #pragma once
 
 #include <sys/time.h>
+#include <stdint.h>
+#include <time.h>
 
 namespace p {
 namespace base {
@@ -11,8 +13,21 @@ namespace base {
 inline uint64_t gettimeofday_us() {
   struct timeval tv;
   gettimeofday(&tv, nullptr);
-  return tv.tv_sec * 1000000L + tv.tv_usec;
+  return tv.tv_sec * 1000000UL + tv.tv_usec;
 }
+
+inline uint64_t clock_gettime_us() {
+  struct timespec tp;
+  ::clock_gettime(CLOCK_REALTIME, &tp);
+  return tp.tv_sec * 1000000ULL + tp.tv_nsec / 1000ULL;
+}
+
+inline uint64_t clock_gettime_ns() {
+  struct timespec tp;
+  ::clock_gettime(CLOCK_REALTIME, &tp);
+  return tp.tv_sec * 1000000000ULL + tp.tv_nsec;
+}
+
 
 } // end namespace base
 } // end namespace p

@@ -59,7 +59,30 @@ void f3() {
     }
 }
 
+class Fuck {
+public:
+    Fuck(int x, int y) : a(x), b(y) {}
+
+    p::base::LogStream& print(p::base::LogStream& l) const {
+        return l << '[' << a << ',' << b << ']';
+    }
+
+private:
+    int a;
+    int b;
+};
+
+void fuck_me() {
+    Fuck ffff(123, 345);
+    LOG_DEBUG << ffff;
+    LOG_DEBUG << Fuck(12, 3238293) << Fuck(399434, 12);
+}
+
 int main() {
+    fuck_me();
+
+
+#if 0
     std::thread a1(f);
     std::thread a2(g);
 
@@ -73,5 +96,6 @@ int main() {
 
     a1.join();
     a2.join();
+#endif
     return 0;
 }
