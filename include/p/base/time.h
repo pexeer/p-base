@@ -28,6 +28,11 @@ inline uint64_t clock_gettime_ns() {
   return tp.tv_sec * 1000000000ULL + tp.tv_nsec;
 }
 
+inline uint64_t steady_clock_gettime_ns() {
+  struct timespec tp;
+  ::clock_gettime(CLOCK_MONOTONIC, &tp);
+  return tp.tv_sec * 1000000000ULL + tp.tv_nsec;
+}
 
 } // end namespace base
 } // end namespace p

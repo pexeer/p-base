@@ -102,11 +102,6 @@ public:
     return *this;
   }
 
-  template<typename T>
-  FastLogStream &operator<<(const T& v) {
-      return v.print(*this);
-  }
-
   FastLogStream& operator<<(FastLogStream &(*func)(FastLogStream &)) {
     return (*func)(*this);
   }

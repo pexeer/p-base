@@ -66,10 +66,11 @@ public:
     template<int N>
     inline SourceFile(const char(&file_name)[N], int line) :
         file_name_(file_name), name_size_(N - 1), file_line_(line) {
-        const char* slash = __builtin_strrchr(file_name_, '/');
+        char* slash = __builtin_strrchr(file_name_, '/');
         if (slash) {
             file_name_ = slash + 1;
-            name_size_ -= (file_name - slash);
+            name_size_ -= static_cast<int>(file_name_ - file_name);
+            //name_size_ = __builtin_strlen(file_name_);
         }
     }
 

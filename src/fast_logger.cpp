@@ -20,11 +20,13 @@ namespace base {
 LogLevel    g_wf_log_min_level = LogLevel::kWarn;
 
 void default_output_func(const char* msg, int len) {
-    write(1, msg, len);
+    auto unused = write(1, msg, len);
+    (void)unused;
 }
 
 void default_wf_output_func(const char* msg, int len) {
-    write(2, msg, len);
+    auto unused = write(2, msg, len);
+    (void)unused;
 }
 
 FastLogMessage::OutputFunc g_output_func = default_output_func;
@@ -32,8 +34,8 @@ FastLogMessage::OutputFunc g_wf_output_func = default_wf_output_func;
 
 // struct LogEntry
 struct FastLogStream::LogEntry {
-    struct LogEntry *next;
-    uint32_t data_len = 4;
+    struct LogEntry*    next;
+    uint32_t    data_len = 4;
     char data[4];
 };
 
@@ -46,7 +48,7 @@ LinkedQueue<FastLogStream::LogEntry> g_log_entry_queue;
 class LogBufferManager {
 public:
   struct BufferEntry {
-    struct BufferEntry *next;
+    struct BufferEntry* next;
     int buffer_len;
     int retry_times;
   };
@@ -249,8 +251,6 @@ private:
       cur = p->next;
       append(cur->data, cur->data_len);
     }
-
-    append(cur->data, cur->data_len);
 
     const char stop_message[] = "Stop Logging Success.\n";
     append(stop_message, strlen(stop_message));

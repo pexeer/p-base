@@ -4,10 +4,12 @@
 #pragma once
 
 #include <atomic>
+#include "p/base/logging.h"
 
 namespace p {
 namespace base {
 
+// One Consumor to avoid ABA proplem
 template <class T> class LinkedQueue {
 public:
   LinkedQueue() {
@@ -18,23 +20,19 @@ public:
 
   void push_back(T *node) {
     node->next = nullptr;
-    T *p;
-    do {
-      p = tail_;
-    } while (tail_.compare_exchange_weak(p, node, std::memory_order_release,
-                                         std::memory_order_relaxed) == false);
+    T *p =  tail_.exchange(node, std::memory_order_release);
     p->next = node;
   }
 
   T *pop_front() {
     T *p;
     do {
-      p = head_;
+      p = head_.load(std::memory_order_acquire);
       if (p->next == nullptr) {
         return nullptr;
       }
     } while (head_.compare_exchange_weak(p, p->next, std::memory_order_release,
-                                         std::memory_order_relaxed) == false);
+                                            std::memory_order_relaxed) == false);
     return p;
   }
 

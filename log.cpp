@@ -72,17 +72,19 @@ private:
     int b;
 };
 
+#if 0
 void fuck_me() {
     Fuck ffff(123, 345);
     LOG_DEBUG << ffff;
     LOG_DEBUG << Fuck(12, 3238293) << Fuck(399434, 12);
 }
+#endif
 
 int main() {
-    fuck_me();
+    //fuck_me();
 
 
-#if 0
+#if 1
     std::thread a1(f);
     std::thread a2(g);
 

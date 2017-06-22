@@ -1,8 +1,9 @@
 #include "p/base/queue.h"
 #include <iostream>
 #include <thread>
+#include "p/base/logging.h"
 
-constexpr int kFlag = 10000;
+constexpr int kFlag = 1000;
 
 struct Node {
   Node *next;
@@ -12,7 +13,7 @@ struct Node {
 
 void push(p::base::LinkedQueue<Node> &lq, int thread_id) {
   int id = 0;
-  for (int i = 0; i < 10000; ++i) {
+  for (int i = 0; i < 1000; ++i) {
     Node *p = new Node[kFlag];
     for (int j = 1; j < kFlag; ++j) {
       Node &tmp = p[j];
@@ -31,10 +32,9 @@ void pop(p::base::LinkedQueue<Node> &lq) {
   while (1) {
     Node *ret = lq.pop_front();
     if (ret) {
-      std::cout << ret->thread_id << "\t" << ret->value << "\n";
+       LOG_TRACE << ret->thread_id << "\t" << ret->value;
       if (ret->value == 0) {
         delete[] ret;
-        std::cout << std::flush;
       }
     }
   }
