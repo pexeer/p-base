@@ -26,3 +26,5 @@
 #define LOG_FATAL p::base::FastLogMessage().log_stream(\
         p::base::LogLevel::kFatal, p::base::SourceFile(__FILE__, __LINE__))
 
+
+extern void stop_log();

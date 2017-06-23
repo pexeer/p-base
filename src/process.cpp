@@ -1,19 +1,19 @@
 // Copyright (c) 2017, pexeer@gmail.com All rights reserved.
 // Licensed under a BSD-style license that can be found in the LICENSE file.
 
-#pragma once
-
-#include <stdint.h>
+#include "p/base/process.h"
+#include <unistd.h>
+#include <stdlib.h>
 
 namespace p {
 namespace base {
 
 namespace Process {
-    extern const int kPid;
+    const int kPid = ::getpid();
 
-    extern const char* const kProcName;
+    const char* const kProcName = "TODO";
 
-    extern const uint64_t kPageSize;
+    const uint64_t kPageSize = ::getpagesize();
 };
 
 } // end namespace base

@@ -13,6 +13,11 @@ template <typename T> struct ObjectChunkItemSize {
     constexpr static int   kValue = 256;
 };
 
+template <typename T> struct ObjectPoolTraits {
+    constexpr static size_t kObjectGroupNumber = 1024;
+    constexpr static size_t kObject = 1;
+};
+
 template <typename T> class ObjectPool {
 public:
     constexpr static int kObjectChunkItemSize = ObjectChunkItemSize<T>::kValue;

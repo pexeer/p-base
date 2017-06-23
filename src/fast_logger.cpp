@@ -198,9 +198,16 @@ public:
       current_pos_ = flush_buffer_;
   }
 
+  void stop() {
+      finished_ = true;
+      if (log_sinker_.joinable()) {
+          log_sinker_.join();
+      }
+  }
+
+
   ~FastLogSinkThread() {
-    finished_ = true;
-    log_sinker_.join();
+      stop();
   }
 
 private:
@@ -308,3 +315,8 @@ inline LogBufferManager::BufferEntry* LogBufferManager::alloc_buffer() {
 
 } // end namespace base
 } // end namespace p
+
+void stop_log() {
+    p::base::g_log_sinker.stop();
+}
+

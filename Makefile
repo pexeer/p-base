@@ -8,8 +8,10 @@ DEBUG=-g -ggdb
 OPT=-O2
 BUILD_DIR ?= ./build
 SRC_DIRS ?= ./src
+CC=clang
+CXX=clang++
 
-SRCS := $(shell find $(SRC_DIRS) -name \*.cpp -or -name \*.c -or -name \*.s)
+SRCS := $(shell find $(SRC_DIRS) -name \*.cpp -or -name \*.c -or -name \*.S)
 OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
 DEPS := $(OBJS:.o=.d)
 INC_DIRS := $(shell find $(SRC_DIRS) -type d)
@@ -51,7 +53,7 @@ $(BUILD_DIR)/p-base.a: $(OBJS)
 -include $(DEPS)
 
 # assembly
-$(BUILD_DIR)/%.s.o: %.s
+$(BUILD_DIR)/%.S.o: %.S
 	$(P_AS) -c $< -o $@
 
 # c source

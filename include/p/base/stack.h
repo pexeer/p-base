@@ -57,7 +57,12 @@ public:
 
   T *pop() {
       std::lock_guard<std::mutex>  lock_guard(mutex_);
-      return head_;
+      if (head_) {
+        T* tmp = head_;
+        head_ = head_->next;
+        return tmp;
+      }
+      return nullptr;
   }
 
 private:
