@@ -95,5 +95,7 @@ public:
     virtual int sink(const char* msg, int len) = 0;
 };
 
+bool stop_logging();
+
 } // end namespace base
 } // end namespace p

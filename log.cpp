@@ -49,7 +49,7 @@ void f2() {
 void f3() {
     unsigned long long fuck = 1;
     for (int i = 1; i < 102400; ++i) {
-        LOG_TRACE << "Hello, world " << i << ",countg=" << fuck << p::noflush;
+        LOG_TRACE << "Hello, world " << i << ",countg=" << fuck << p::base::noflush;
         LOG_WARN << " i wiil flush";
         fuck += 3 * i;
         if (i % 100) {
