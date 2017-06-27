@@ -3,82 +3,106 @@
 
 #pragma once
 
+#include <assert.h>
 #include "p/base/stack.h"
 #include "p/base/logging.h"
 
 namespace p {
 namespace base {
 
-template <typename T> struct ObjectChunkItemSize {
+template <typename T> struct ObjectGroupItemSize {
     constexpr static int   kValue = 256;
-};
-
-template <typename T> struct ObjectPoolTraits {
-    constexpr static size_t kObjectGroupNumber = 1024;
-    constexpr static size_t kObject = 1;
 };
 
 template <typename T> class ObjectPool {
 public:
-    constexpr static int kObjectChunkItemSize = ObjectChunkItemSize<T>::kValue;
+    T* get() {
+        return tls_local_object_group_.get();
+    }
 
-    struct ObjectChunk {
-        ObjectChunk*        next;
-        int                 object_size;
-        T*                  object_list[kObjectChunkItemSize];
+    void put(T* obj) {
+        tls_local_object_group_.put(obj);
+    }
+
+private:
+    constexpr static int kObjectGroupItemSize = ObjectGroupItemSize<T>::kValue;
+
+    struct ObjectGroup {
+        ObjectGroup*        next;
+        int                 size;
+        T*                  items[kObjectGroupItemSize];
     };
 
-    T* allocate() {
-        if (tls_free_chunk_) {
-            if (tls_free_chunk_->object_size > 0) {
-                return tls_free_chunk_->object_list[--tls_free_chunk_->object_size];
+    class LocalObjectGroup {
+    public:
+        T * get() {
+            if (object_group_ptr_) {
+                if (object_group_ptr_->size > 0) {
+                    return object_group_ptr_->items[--object_group_ptr_->size];
+                }
+                global_free_object_group_stack_.push(object_group_ptr_);
             }
-            global_free_chunk_queue_.push(tls_free_chunk_);
+
+            object_group_ptr_= global_object_group_stack_.pop();
+            if (object_group_ptr_) {
+                assert(object_group_ptr_->size > 0 &&
+                        object_group_ptr_->size <= kObjectGroupItemSize);
+                --(object_group_ptr_->size);
+                return object_group_ptr_->items[object_group_ptr_->size];
+            }
+
+            return T::NewThis();
         }
 
-        tls_free_chunk_ = global_full_chunk_queue_.pop();
+        void put(T* obj) {
+            if (object_group_ptr_) {
+                if (object_group_ptr_->size < kObjectGroupItemSize) {
+                    object_group_ptr_->items[(object_group_ptr_->size)++] = obj;
+                    return ;
+                } else {
+                    global_object_group_stack_.push(object_group_ptr_);
+                }
+            }
 
-        if (tls_free_chunk_) {
-            tls_free_chunk_->object_size = kObjectChunkItemSize - 1;
-            return tls_free_chunk_->object_list[tls_free_chunk_->object_size];
+            object_group_ptr_ = global_free_object_group_stack_.pop();
+            if (!object_group_ptr_) {
+                object_group_ptr_ = new(std::nothrow) ObjectGroup;
+            }
+            object_group_ptr_->size = 1;
+            object_group_ptr_->items[0] = obj;
         }
 
-        auto ret = new T;
-        return ret;
-    }
-
-    void free(T* obj) {
-        if (tls_free_chunk_) {
-            if (tls_free_chunk_->object_size < kObjectChunkItemSize) {
-                tls_free_chunk_->object_list[(tls_free_chunk_->object_size)++] = obj;
-                return ;
-            } else {
-                global_full_chunk_queue_.push(tls_free_chunk_);
+        ~LocalObjectGroup() {
+            if (object_group_ptr_) {
+                if (object_group_ptr_->size > 0) {
+                    global_object_group_stack_.push(object_group_ptr_);
+                } else {
+                    global_free_object_group_stack_.push(object_group_ptr_);
+                }
             }
         }
 
-        tls_free_chunk_ = allocate_free_object_chunk();
-        tls_free_chunk_->object_size = 1;
-        tls_free_chunk_->object_list[0] = obj;
-    }
+    private:
+        ObjectGroup*    object_group_ptr_ = nullptr;
+    };
 
 private:
-    ObjectChunk* allocate_free_object_chunk() {
-        ObjectChunk* ret = global_free_chunk_queue_.pop();
-        if (ret) {
-            return ret;
-        }
-        return new ObjectChunk;
-    }
-
-private:
-    thread_local static ObjectChunk*     tls_free_chunk_;
-    p::base::LinkedStack<ObjectChunk>    global_full_chunk_queue_;
-    p::base::LinkedStack<ObjectChunk>    global_free_chunk_queue_;
+    thread_local static LocalObjectGroup     tls_local_object_group_;
+    static p::base::LinkedStack<ObjectGroup>    global_object_group_stack_;
+    static p::base::LinkedStack<ObjectGroup>    global_free_object_group_stack_;
 };
 
 template<typename T>
-thread_local typename ObjectPool<T>::ObjectChunk* ObjectPool<T>::tls_free_chunk_ = nullptr;
+thread_local typename ObjectPool<T>::LocalObjectGroup
+ObjectPool<T>::tls_local_object_group_;
+
+template<typename T>
+p::base::LinkedStack<typename ObjectPool<T>::ObjectGroup>
+ObjectPool<T>::global_object_group_stack_;
+
+template<typename T>
+p::base::LinkedStack<typename ObjectPool<T>::ObjectGroup>
+ObjectPool<T>::global_free_object_group_stack_;
 
 } // end namespace base
 } // end namespace p
