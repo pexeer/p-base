@@ -49,7 +49,7 @@ public:
     head_ = nullptr;
   }
 
-  void push(T *node) {
+  void push(T* node) {
       std::lock_guard<std::mutex>  lock_guard(mutex_);
       node->next = head_;
       head_ = node;

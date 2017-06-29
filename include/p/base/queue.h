@@ -38,8 +38,8 @@ public:
 
 private:
   T dummy_;
-  std::atomic<T *> head_;
-  std::atomic<T *> tail_;
+  P_CACHELINE_ALIGNMENT std::atomic<T *> head_;
+  P_CACHELINE_ALIGNMENT std::atomic<T *> tail_;
 };
 
 } // end namespace base

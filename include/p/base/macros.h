@@ -34,7 +34,7 @@ private:                                                                        
   void operator=(const TypeName &&) = delete
 
 #define P_CACHELINE_SIZE 64U
-#define P_CACHELINE_ALIGNMENT __attribute__((aligned(P_CACHELINE_SIZE)))
+#define P_CACHELINE_ALIGNMENT alignas(P_CACHELINE_SIZE)
 #define P_PTR_ALIGNMENT(ptr) (((uintptr_t)(ptr) + (uintptr_t)(7)) & ~((uintptr_t)(7)))
 #define P_PTR_CACHELINE_ALIGNMENT(ptr) (((uintptr_t)(ptr) + (uintptr_t)(P_CACHELINE_SIZE - 1))\
     & ~((uintptr_t)(P_CACHELINE_SIZE - 1)))

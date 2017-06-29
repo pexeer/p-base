@@ -5,10 +5,47 @@
 
 #include <assert.h>
 #include "p/base/stack.h"
+#include "p/base/object_arena.h"
 #include "p/base/logging.h"
 
 namespace p {
 namespace base {
+
+template <class T> class LockFreeStack {
+public:
+  LockFreeStack() {
+    head_ = 0;
+  }
+
+  void push(uint64_t value) {
+      value += 0x100000000;
+      T* node = ObjectArena<T>::find(value);
+
+      uint64_t p;
+    do {
+        p = head_.load(std::memory_order_acquire);
+        node->next = p;
+    } while (head_.compare_exchange_weak(p, value, std::memory_order_release,
+                                         std::memory_order_relaxed) == false);
+  }
+
+  uint64_t pop() {
+    uint64_t p;
+    uint64_t next;
+    do {
+      p = head_.load(std::memory_order_acquire);
+      if (!p) {
+        return 0;
+      }
+      next = ObjectArena<T>::find(p)->next;
+    } while (head_.compare_exchange_weak(p, next, std::memory_order_release,
+                                            std::memory_order_relaxed) == false);
+    return p;
+  }
+
+private:
+  std::atomic<uint64_t> head_;
+};
 
 template <typename T> struct ObjectGroupItemSize {
     constexpr static int   kValue = 256;
@@ -16,11 +53,11 @@ template <typename T> struct ObjectGroupItemSize {
 
 template <typename T> class ObjectPool {
 public:
-    T* get() {
+    static T* get() {
         return tls_local_object_group_.get();
     }
 
-    void put(T* obj) {
+    static void put(T* obj) {
         tls_local_object_group_.put(obj);
     }
 
@@ -28,7 +65,7 @@ private:
     constexpr static int kObjectGroupItemSize = ObjectGroupItemSize<T>::kValue;
 
     struct ObjectGroup {
-        ObjectGroup*        next;
+        uint64_t            next;
         int                 size;
         T*                  items[kObjectGroupItemSize];
     };
@@ -40,16 +77,18 @@ private:
                 if (object_group_ptr_->size > 0) {
                     return object_group_ptr_->items[--object_group_ptr_->size];
                 }
-                global_free_object_group_stack_.push(object_group_ptr_);
+                global_free_object_group_stack_.push(object_group_id_);
             }
 
-            object_group_ptr_= global_object_group_stack_.pop();
-            if (object_group_ptr_) {
+            object_group_id_ = global_object_group_stack_.pop();
+            if (object_group_id_) {
+                object_group_ptr_ = ObjectArena<ObjectGroup>::find(object_group_id_);
                 assert(object_group_ptr_->size > 0 &&
                         object_group_ptr_->size <= kObjectGroupItemSize);
                 --(object_group_ptr_->size);
                 return object_group_ptr_->items[object_group_ptr_->size];
             }
+            object_group_ptr_ = nullptr;
 
             return T::NewThis();
         }
@@ -60,14 +99,12 @@ private:
                     object_group_ptr_->items[(object_group_ptr_->size)++] = obj;
                     return ;
                 } else {
-                    global_object_group_stack_.push(object_group_ptr_);
+                    global_object_group_stack_.push(object_group_id_);
                 }
             }
 
-            object_group_ptr_ = global_free_object_group_stack_.pop();
-            if (!object_group_ptr_) {
-                object_group_ptr_ = new(std::nothrow) ObjectGroup;
-            }
+            new_free_object_group();
+
             object_group_ptr_->size = 1;
             object_group_ptr_->items[0] = obj;
         }
@@ -75,21 +112,37 @@ private:
         ~LocalObjectGroup() {
             if (object_group_ptr_) {
                 if (object_group_ptr_->size > 0) {
-                    global_object_group_stack_.push(object_group_ptr_);
+                    global_object_group_stack_.push(object_group_id_);
                 } else {
-                    global_free_object_group_stack_.push(object_group_ptr_);
+                    global_free_object_group_stack_.push(object_group_id_);
                 }
+            }
+        }
+
+        void new_free_object_group() {
+            object_group_id_ = global_free_object_group_stack_.pop();
+            if (object_group_id_) {
+                object_group_ptr_ = ObjectArena<ObjectGroup>::find(object_group_id_);
+                return ;
+            }
+
+            object_group_ptr_ = ObjectArena<ObjectGroup>::get(&object_group_id_);
+
+            uint64_t free_id = object_group_id_;
+            for (size_t i = 1; i < ObjectArena<ObjectGroup>::N; ++i) {
+                global_free_object_group_stack_.push(++free_id);
             }
         }
 
     private:
         ObjectGroup*    object_group_ptr_ = nullptr;
+        uint64_t        object_group_id_ = 0;
     };
 
 private:
     thread_local static LocalObjectGroup     tls_local_object_group_;
-    static p::base::LinkedStack<ObjectGroup>    global_object_group_stack_;
-    static p::base::LinkedStack<ObjectGroup>    global_free_object_group_stack_;
+    static p::base::LockFreeStack<ObjectGroup>    global_object_group_stack_;
+    static p::base::LockFreeStack<ObjectGroup>    global_free_object_group_stack_;
 };
 
 template<typename T>
@@ -97,11 +150,11 @@ thread_local typename ObjectPool<T>::LocalObjectGroup
 ObjectPool<T>::tls_local_object_group_;
 
 template<typename T>
-p::base::LinkedStack<typename ObjectPool<T>::ObjectGroup>
+p::base::LockFreeStack<typename ObjectPool<T>::ObjectGroup>
 ObjectPool<T>::global_object_group_stack_;
 
 template<typename T>
-p::base::LinkedStack<typename ObjectPool<T>::ObjectGroup>
+p::base::LockFreeStack<typename ObjectPool<T>::ObjectGroup>
 ObjectPool<T>::global_free_object_group_stack_;
 
 } // end namespace base

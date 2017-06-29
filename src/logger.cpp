@@ -81,8 +81,8 @@ private:
   void add_buffer(int num);
 
 private:
-  std::atomic<int> total_buffer_number_;
-  std::atomic<int> free_buffer_number_;
+  P_CACHELINE_ALIGNMENT std::atomic<int> total_buffer_number_;
+  P_CACHELINE_ALIGNMENT std::atomic<int> free_buffer_number_;
   LinkedQueue<BufferEntry> free_buffer_queue_;
 
   std::mutex buffer_mutex_;
