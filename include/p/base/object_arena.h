@@ -44,7 +44,7 @@ private:
         }
 
         T* find(uint64_t id) {
-            uint64_t obj_id = id & 0xFFFFFFFF;
+            uint64_t obj_id = id & 0xFFFFFFFFULL;
             uint64_t block_id = obj_id >> BASE;
             uint64_t group_id = (block_id >> BASE) - 1;
             return group_list_[group_id].load(std::memory_order_acquire)->

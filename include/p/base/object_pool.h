@@ -18,7 +18,7 @@ public:
   }
 
   void push(uint64_t value) {
-      value += 0x100000000;
+      value += 0x100000000ULL; // version + 1
       T* node = ObjectArena<T>::find(value);
 
       uint64_t p;
@@ -57,6 +57,10 @@ public:
         return tls_local_object_group_.get();
     }
 
+    static T*get(void* arg) {
+        return tls_local_object_group_.get(arg);
+    }
+
     static void put(T* obj) {
         tls_local_object_group_.put(obj);
     }
@@ -91,6 +95,27 @@ private:
             object_group_ptr_ = nullptr;
 
             return T::NewThis();
+        }
+
+        T * get(void* arg) {
+            if (object_group_ptr_) {
+                if (object_group_ptr_->size > 0) {
+                    return object_group_ptr_->items[--object_group_ptr_->size];
+                }
+                global_free_object_group_stack_.push(object_group_id_);
+            }
+
+            object_group_id_ = global_object_group_stack_.pop();
+            if (object_group_id_) {
+                object_group_ptr_ = ObjectArena<ObjectGroup>::find(object_group_id_);
+                assert(object_group_ptr_->size > 0 &&
+                        object_group_ptr_->size <= kObjectGroupItemSize);
+                --(object_group_ptr_->size);
+                return object_group_ptr_->items[object_group_ptr_->size];
+            }
+            object_group_ptr_ = nullptr;
+
+            return T::NewThis(arg);
         }
 
         void put(T* obj) {
