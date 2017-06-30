@@ -53,7 +53,8 @@ private:
         }
 
         ObjectBlock* add_block(uint64_t* block_id) {
-            ObjectBlock* ret = new ObjectBlock;
+            ObjectBlock* ret = (ObjectBlock*)::malloc(sizeof(ObjectBlock));
+            //ObjectBlock* ret = new ObjectBlock();
             uint64_t group_size;
             do {
                 group_size = group_size_.load(std::memory_order_acquire);

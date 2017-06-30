@@ -182,6 +182,126 @@ template<typename T>
 p::base::LockFreeStack<typename ObjectPool<T>::ObjectGroup>
 ObjectPool<T>::global_free_object_group_stack_;
 
+template <typename T> struct ArenaObjectGroupItemSize {
+    constexpr static int   kValue = ObjectArena<T>::N;
+};
+
+template <typename T> class ArenaObjectPool {
+public:
+    static T* get(uint64_t* obj_id) {
+        return tls_local_object_group_.get(obj_id);
+    }
+
+    static void put(uint64_t obj_id) {
+        tls_local_object_group_.put(obj_id);
+    }
+
+private:
+    constexpr static int kObjectGroupItemSize = ArenaObjectGroupItemSize<T>::kValue;
+
+    struct ObjectGroup {
+        uint64_t            next;
+        int                 size;
+        uint64_t            items[kObjectGroupItemSize];
+    };
+
+    class LocalObjectGroup {
+    public:
+        T * get(uint64_t* obj_id) {
+            if (object_group_ptr_) {
+                if (object_group_ptr_->size > 0) {
+                    *obj_id = object_group_ptr_->items[--object_group_ptr_->size];
+                    return ObjectArena<T>::find(*obj_id);
+                }
+                global_free_object_group_stack_.push(object_group_id_);
+            }
+
+            object_group_id_ = global_object_group_stack_.pop();
+            if (object_group_id_) {
+                object_group_ptr_ = ObjectArena<ObjectGroup>::find(object_group_id_);
+                assert(object_group_ptr_->size > 0 &&
+                        object_group_ptr_->size <= kObjectGroupItemSize);
+                --(object_group_ptr_->size);
+                *obj_id = object_group_ptr_->items[object_group_ptr_->size];
+                return ObjectArena<T>::find(*obj_id);
+            }
+
+            // get a free object group
+            new_free_object_group();
+
+            T* items = ObjectArena<T>::get(obj_id);
+            uint64_t tmp_id = *obj_id;
+            object_group_ptr_->size = kObjectGroupItemSize - 1;
+            for (size_t i = 1; i < kObjectGroupItemSize; ++i) {
+                object_group_ptr_->items[i - 1] = tmp_id + i;
+            }
+            return items;
+        }
+
+        void put(uint64_t obj_id) {
+            if (object_group_ptr_) {
+                if (object_group_ptr_->size < kObjectGroupItemSize) {
+                    object_group_ptr_->items[(object_group_ptr_->size)++] = obj_id;
+                    return ;
+                } else {
+                    global_object_group_stack_.push(object_group_id_);
+                }
+            }
+
+            new_free_object_group();
+
+            object_group_ptr_->size = 1;
+            object_group_ptr_->items[0] = obj_id;
+        }
+
+        ~LocalObjectGroup() {
+            if (object_group_ptr_) {
+                if (object_group_ptr_->size > 0) {
+                    global_object_group_stack_.push(object_group_id_);
+                } else {
+                    global_free_object_group_stack_.push(object_group_id_);
+                }
+            }
+        }
+
+        void new_free_object_group() {
+            object_group_id_ = global_free_object_group_stack_.pop();
+            if (object_group_id_) {
+                object_group_ptr_ = ObjectArena<ObjectGroup>::find(object_group_id_);
+                return ;
+            }
+
+            object_group_ptr_ = ObjectArena<ObjectGroup>::get(&object_group_id_);
+
+            uint64_t free_id = object_group_id_;
+            for (size_t i = 1; i < ObjectArena<ObjectGroup>::N; ++i) {
+                global_free_object_group_stack_.push(++free_id);
+            }
+        }
+
+    private:
+        ObjectGroup*    object_group_ptr_ = nullptr;
+        uint64_t        object_group_id_ = 0;
+    };
+
+private:
+    thread_local static LocalObjectGroup     tls_local_object_group_;
+    static p::base::LockFreeStack<ObjectGroup>    global_object_group_stack_;
+    static p::base::LockFreeStack<ObjectGroup>    global_free_object_group_stack_;
+};
+
+template<typename T>
+thread_local typename ArenaObjectPool<T>::LocalObjectGroup
+ArenaObjectPool<T>::tls_local_object_group_;
+
+template<typename T>
+p::base::LockFreeStack<typename ArenaObjectPool<T>::ObjectGroup>
+ArenaObjectPool<T>::global_object_group_stack_;
+
+template<typename T>
+p::base::LockFreeStack<typename ArenaObjectPool<T>::ObjectGroup>
+ArenaObjectPool<T>::global_free_object_group_stack_;
+
 } // end namespace base
 } // end namespace p
 
