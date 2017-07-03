@@ -60,6 +60,12 @@ int main() {
     std::cout << std::chrono::high_resolution_clock::period::num << std::endl;
     std::cout << std::chrono::high_resolution_clock::period::den << std::endl;
 
+    auto now = std::chrono::steady_clock::now();
+    std::cout << typeid(now).name() << std::endl;
+    auto x = now.time_since_epoch();
+    std::cout << typeid(x).name() << std::endl;
+
+    std::cout << x.count() << std::endl;
     auto f0 = f();
     auto g0 = g();
     auto h0 = h();
