@@ -210,7 +210,7 @@ private:
         T * get(uint64_t* obj_id) {
             if (object_group_ptr_) {
                 if (object_group_ptr_->size > 0) {
-                    *obj_id = object_group_ptr_->items[--object_group_ptr_->size];
+                    *obj_id = object_group_ptr_->items[--(object_group_ptr_->size)];
                     return ObjectArena<T>::find(*obj_id);
                 }
                 global_free_object_group_stack_.push(object_group_id_);

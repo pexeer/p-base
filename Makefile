@@ -5,7 +5,7 @@
 STD=-std=c++11
 WARNING=-Wall -Werror
 DEBUG=-g3
-#OPT=-O2
+OPT=-O2
 BUILD_DIR ?= ./build
 SRC_DIRS ?= ./src
 CC=clang
@@ -33,14 +33,15 @@ MAKECOLOR="\033[32;1m"
 ENDCOLOR="\033[0m"
 
 ifndef V
-QUIET_C = @printf '    %b %b\n' $(CCCOLOR)CXX$(ENDCOLOR) $(SRCCOLOR)$@$(ENDCOLOR) 1>&2;
+QUIET_C = @printf '    %b %b\n' $(CCCOLOR)CC$(ENDCOLOR) $(SRCCOLOR)$@$(ENDCOLOR) 1>&2;
+QUIET_CXX = @printf '    %b %b\n' $(CCCOLOR)CXX$(ENDCOLOR) $(SRCCOLOR)$@$(ENDCOLOR) 1>&2;
 QUIET_LINK = @printf '%b %b\n' $(LINKCOLOR)LINK$(ENDCOLOR) $(BINCOLOR)$@$(ENDCOLOR) 1>&2;
 QUIET_AR = @printf '%b %b\n' $(LINKCOLOR)AR$(ENDCOLOR) $(BINCOLOR)$@$(ENDCOLOR) 1>&2;
 endif
 
 P_AS=$(QUIET_C)$(CC) $(FINAL_ASFLAGS)
 P_CC=$(QUIET_C)$(CC) $(FINAL_CFLAGS)
-P_CXX=$(QUIET_C)$(CXX) $(FINAL_CXXFLAGS)
+P_CXX=$(QUIET_CXX)$(CXX) $(FINAL_CXXFLAGS)
 P_LINK=$(QUIET_LINK)$(CXX) $(FINAL_LDFLAGS) $(FINAL_LIBS)
 P_AR=$(QUIET_AR)$(AR) crs
 
