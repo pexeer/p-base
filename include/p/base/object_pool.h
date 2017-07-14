@@ -196,6 +196,10 @@ public:
         tls_local_object_group_.put(obj_id);
     }
 
+    static T* find(uint64_t obj_id) {
+        return ObjectArena<T>::find(obj_id);
+    }
+
 private:
     constexpr static int kObjectGroupItemSize = ArenaObjectGroupItemSize<T>::kValue;
 
