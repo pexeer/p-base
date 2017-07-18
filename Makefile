@@ -5,7 +5,7 @@
 STD=-std=c++11
 WARNING=-Wall -Werror
 DEBUG=-g3
-OPT=-O2
+#OPT=-O2
 BUILD_DIR ?= ./build
 SRC_DIRS ?= ./src
 CC=clang

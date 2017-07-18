@@ -5,8 +5,9 @@
 
 #include "p/base/endpoint.h"
 #include "p/base/macros.h" // DISALLOW_COPY
-#include <sys/socket.h>
 #include <unistd.h>
+#include <sys/socket.h>
+#include <atomic>
 
 namespace p {
 namespace base {
@@ -15,11 +16,17 @@ class Socket {
 public:
   Socket() {}
 
-  bool Connect(const EndPoint &endpoint);
+  int Connect(const EndPoint &endpoint);
 
-  bool Listen(const EndPoint &endpoint);
+  int Listen(const EndPoint &endpoint);
 
-  bool Accept(Socket &new_s);
+  int set_non_block();
+
+  int set_close_on_exec();
+
+  int set_no_delay();
+
+  int Accept(Socket* new_s);
 
   ssize_t Write(const void *buf, size_t count) {
     return ::write(fd_, buf, count);
@@ -36,8 +43,7 @@ public:
   explicit operator bool() const { return fd_ >= 0; }
 
 private:
-  int fd_ = -1;
-  int st_;
+  std::atomic<int32_t> fd_ = {-1};
 
 private:
   P_DISALLOW_COPY(Socket);

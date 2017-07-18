@@ -2,15 +2,46 @@
 // Licensed under a BSD-style license that can be found in the LICENSE file.
 
 #include "p/base/socket.h"
-#include <string.h>
+#include <fcntl.h>          // fctnl
+#include <errno.h>          // errno
+#include <string.h>         // memset
+
+#include <sys/socket.h>              // setsockopt
+#include <netinet/tcp.h>             // TCP_NODELAY
+#include <netinet/in.h>              // IPPROTO_TCP
 
 namespace p {
 namespace base {
 
-bool Socket::Connect(const EndPoint &endpoint) {
+// set non-block flag for fd_
+inline int Socket::set_non_block() {
+    int flags = ::fcntl(fd_, F_GETFL, 0);
+    if (flags > 0) {
+        flags |= O_NONBLOCK;
+        flags = ::fcntl(fd_, F_SETFL, flags);
+    }
+    return flags;
+}
+
+// set close-on-exec flag for fd_
+inline int Socket::set_close_on_exec() {
+    int flags = ::fcntl(fd_, F_GETFD, 0);
+    if (flags > 0) {
+        flags |= FD_CLOEXEC;
+        flags = ::fcntl(fd_, F_SETFD, flags);
+    }
+    return flags;
+}
+
+inline int Socket::set_no_delay() {
+    int flag = 1;
+    return setsockopt(fd_, IPPROTO_TCP, TCP_NODELAY, (char*)&flag, sizeof(flag));
+}
+
+int Socket::Connect(const EndPoint &endpoint) {
   fd_ = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   if (fd_ < 0) {
-    return false;
+    return errno;
   }
   struct sockaddr_in servaddr;
   memset(&servaddr, 0, sizeof(servaddr));
@@ -18,18 +49,18 @@ bool Socket::Connect(const EndPoint &endpoint) {
   servaddr.sin_port = htons(endpoint.port());
   servaddr.sin_addr.s_addr = endpoint.ip();
 
-  if (::connect(fd_, (struct sockaddr *)&servaddr, sizeof(struct sockaddr)) <
-      0) {
-    return false;
+  set_non_block();
+  set_close_on_exec();
+  if (::connect(fd_, (struct sockaddr *)&servaddr, sizeof(struct sockaddr)) < 0) {
+    return errno;
   }
-
-  return true;
+  return 0;
 }
 
-bool Socket::Listen(const EndPoint &endpoint) {
+int Socket::Listen(const EndPoint &endpoint) {
   fd_ = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   if (fd_ < 0) {
-    return false;
+    return errno;
   }
 
   struct sockaddr_in servaddr;
@@ -42,9 +73,28 @@ bool Socket::Listen(const EndPoint &endpoint) {
   }
 
   if (::listen(fd_, SOMAXCONN) < 0) {
-    return false;
+    return errno;
   }
-  return true;
+  return 0;
+}
+
+int Socket::Accept(Socket* new_s) {
+    struct sockaddr_in new_addr;
+    memset(&new_addr, 0, sizeof(new_addr));
+    if (new_s->fd_ >= 0) {
+        ::close(new_s->fd_);
+    }
+    socklen_t addrlen = static_cast<socklen_t>(sizeof(new_addr));
+
+#ifdef P_OS_MACOSX
+    new_s->fd_ = ::accept(fd_, (struct sockaddr*)&new_addr, &addrlen);
+    set_non_block();
+    set_close_on_exec();
+#else
+    new_s->fd_ = ::accept4(fd_, (struct sockaddr*)&new_addr, &addrlen,
+                SOCK_NONBLOCK | SOCK_CLOEXEC);
+#endif
+    return new_s->fd_;
 }
 
 } // end namespace base
