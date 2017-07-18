@@ -10,7 +10,7 @@
 char buf[10240001];
 
 int main() {
-    p::base::EndPoint tmp("127.0.0.1", 9099);
+    p::base::EndPoint tmp(nullptr, 9099);
     p::base::Socket x;
 
     int ret = x.Listen(tmp);
@@ -18,7 +18,10 @@ int main() {
 
     p::base::Socket s;
 
-    if (x.Accept(&s) >= 0) {
+    ret = x.Accept(&s);
+    if (ret) {
+        printf("Accept failed,%s\n", strerror(ret));
+    } else {
         printf("accpet succsse\n");
         sleep(3);
         ssize_t len = s.Read(buf, 10240000);
@@ -28,7 +31,11 @@ int main() {
     while (true) {
         sleep(5);
         ssize_t len = s.Read(buf, 10240000);
-        printf("%ld\n", len);
+        if (len >= 0) {
+            printf("%ld\n", len);
+        } else {
+            printf("Read Error,%s\n", strerror(len));
+        }
     }
 
     return 0;

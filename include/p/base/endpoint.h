@@ -32,8 +32,14 @@ public:
 
   EndPoint(const char *ip, short port) {
     port_ = port;
-    ip_ = hostname2ip(ip);
+    if (ip) {
+        ip_ = hostname2ip(ip);
+    } else {
+        ip_ = s_local_ip;
+    }
   }
+
+  EndPoint(in_addr_t ip, unsigned short port) : ip_(ip), port_(port) {}
 
   explicit operator bool() const { return ip_ != INADDR_NONE; }
 

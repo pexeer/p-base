@@ -70,14 +70,24 @@ public:
 
             void Run();
 
+            void futex_wait(int signal_pending, const timespec& abstime);
+
+            void futex_wake(int signal_pending);
+
         private:
             size_t              bucket_number_;
             TimerBucket*        bucket_array_;
             std::atomic<int>    stop_;
             std::thread         thread_;
 
+            P_CACHELINE_ALIGNMENT
             std::atomic<uint64_t>       min_timestamp_;
-            std::atomic<int>            signal_num_;
+            std::atomic<int>            signal_pending_;
+#if !defined(P_OS_LINUX)
+            P_CACHELINE_ALIGNMENT
+            std::mutex                  mutex_;
+            std::condition_variable     condition_;
+#endif
     };
 
 private:

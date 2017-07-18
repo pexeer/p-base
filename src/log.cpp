@@ -80,6 +80,7 @@ private:
     struct tm local_tm;
     localtime_r(&time_utc_sec, &local_tm);
 
+    // std::strftime
 #ifdef LOG_TIME_TO_US
     snprintf(formatted_, sizeof(formatted_),
              "%04d%02d%02d-%02d:%02d:%02d.%06lu ", local_tm.tm_year + 1900,

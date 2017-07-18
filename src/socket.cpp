@@ -81,20 +81,28 @@ int Socket::Listen(const EndPoint &endpoint) {
 int Socket::Accept(Socket* new_s) {
     struct sockaddr_in new_addr;
     memset(&new_addr, 0, sizeof(new_addr));
+    socklen_t addrlen = static_cast<socklen_t>(sizeof(new_addr));
+
+    int fd = -1;
+#ifdef P_OS_MACOSX
+    fd = ::accept(fd_, (struct sockaddr*)&new_addr, &addrlen);
+    if (fd >= 0) {
+        set_non_block();
+        set_close_on_exec();
+    }
+#else
+    fd = ::accept4(fd_, (struct sockaddr*)&new_addr, &addrlen,
+                SOCK_NONBLOCK | SOCK_CLOEXEC);
+#endif
+    if (fd < 0) {
+        return errno;
+    }
+
     if (new_s->fd_ >= 0) {
         ::close(new_s->fd_);
     }
-    socklen_t addrlen = static_cast<socklen_t>(sizeof(new_addr));
-
-#ifdef P_OS_MACOSX
-    new_s->fd_ = ::accept(fd_, (struct sockaddr*)&new_addr, &addrlen);
-    set_non_block();
-    set_close_on_exec();
-#else
-    new_s->fd_ = ::accept4(fd_, (struct sockaddr*)&new_addr, &addrlen,
-                SOCK_NONBLOCK | SOCK_CLOEXEC);
-#endif
-    return new_s->fd_;
+    new_s->fd_ = fd;
+    return 0;
 }
 
 } // end namespace base

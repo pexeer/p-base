@@ -5,6 +5,7 @@
 #include "p/base/port.h"
 #include "p/base/object_pool.h"
 #include "p/base/this_thread.h"
+#include <chrono>
 
 namespace p {
 namespace base {
@@ -83,7 +84,7 @@ inline bool TimerControl::TimerBucket::add_timer(Timer* tm) {
     return true;
 }
 
-TimerControl::TimerThread::TimerThread(uint32_t bucket_number) : bucket_number_(bucket_number) {
+TimerControl::TimerThread::TimerThread(uint32_t bucket_signal_pending) : bucket_number_(bucket_signal_pending) {
     if (bucket_number_ == 0) {
         bucket_number_ = 1;
     }
@@ -113,7 +114,7 @@ TimerControl::TimerThread::~TimerThread() {
 void TimerControl::TimerThread::stop_and_join() {
     if (thread_.joinable()) {
         stop_.store(1);
-        futex_wake((int*)&signal_num_, 1);
+        futex_wake(1);
         thread_.join();
     }
 }
@@ -160,7 +161,7 @@ void TimerControl::TimerThread::Run() {
             tmp->run_and_delete();
         }
 
-        int signal_num = signal_num_.load(std::memory_order_acquire);
+        int signal_pending = signal_pending_.load(std::memory_order_acquire);
         uint64_t min_sleep_point = min_timestamp_.load(std::memory_order_acquire);
         if (tm_heap.size()) {
             tmp = tm_heap[0];
@@ -175,7 +176,7 @@ void TimerControl::TimerThread::Run() {
             min_sleep_point -= now;
             abs_time.tv_sec = min_sleep_point / 1000000UL;
             abs_time.tv_nsec = min_sleep_point - abs_time.tv_sec * 1000000UL;
-            futex_wait((int*)&signal_num_, signal_num, &abs_time);
+            futex_wait(signal_pending, abs_time);
         }
     }
 
@@ -186,6 +187,32 @@ void TimerControl::TimerThread::Run() {
 
     //LOG_INFO << "TimerThread exited.";
     assert(stop_.load());
+}
+
+inline void TimerControl::TimerThread::futex_wait(int signal_pending, const timespec& abstime) {
+#if !defined(P_OS_LINUX)
+    std::unique_lock<std::mutex>    lock_gaurd(mutex_);
+    if (signal_pending == signal_pending_) {
+        auto d = std::chrono::seconds{abstime.tv_sec}
+               + std::chrono::nanoseconds{abstime.tv_nsec};
+        std::chrono::system_clock::time_point tp(
+                std::chrono::duration_cast<std::chrono::system_clock::duration>(d));
+        condition_.wait_until(lock_gaurd, &tp);
+    }
+#else
+    p::base::futex_wait((int*)&signal_pending_, signal_pending, &abstime);
+#endif
+}
+
+inline void TimerControl::TimerThread::futex_wake(int signal_pending) {
+#if !defined(P_OS_LINUX)
+    std::unique_lock<std::mutex>    lock_gaurd(mutex_);
+    signal_pending_ += signal_pending;
+    condition_.notify_one();
+#else
+    signal_pending_.fetch_add(signal_pending, std::memory_order_release);
+    p::base::futex_wake((int*)&signal_pending_, signal_pending);
+#endif
 }
 
 inline void TimerControl::TimerThread::add_timer(Timer* tm) {
@@ -204,8 +231,7 @@ inline void TimerControl::TimerThread::add_timer(Timer* tm) {
             break;
         }
     }
-    signal_num_.fetch_add(1, std::memory_order_release);
-    futex_wake((int*)&signal_num_, 1);
+    futex_wake(1);
 }
 
 TimerId TimerControl::add_timer(void (*func)(void*), void* arg, const timespec& abstime) {
