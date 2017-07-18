@@ -4,10 +4,14 @@
 #pragma once
 
 #include "p/base/macros.h"
+
+#if defined(P_OS_LINUX)
 #include <unistd.h>                 // SYS_gettid
 #include <sys/syscall.h>            // syscall
-
-#include <thread>           // pthread_threadid_np
+#include <error.h>                  // strerror
+#else
+#include <thread>                   // pthread_threadid_np
+#endif
 
 namespace p {
 namespace base {

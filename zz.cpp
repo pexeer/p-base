@@ -5,7 +5,6 @@
 #include "p/base/endpoint.h"
 #include "p/base/socket.h"
 #include <string>
-#include <error.h>
 
 char buf[10240001];
 

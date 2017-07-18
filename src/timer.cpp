@@ -6,6 +6,7 @@
 #include "p/base/object_pool.h"
 #include "p/base/this_thread.h"
 #include <chrono>
+#include <vector>
 
 namespace p {
 namespace base {
@@ -121,7 +122,7 @@ void TimerControl::TimerThread::stop_and_join() {
 
 void TimerControl::TimerThread::Run() {
     //LOG_INFO << "TimerThread started.";
-    std::vector<Timer*> tm_heap;
+    std::vector<TimerControl::Timer*> tm_heap;
     tm_heap.reserve(4096);
 
     Timer* tmp;
@@ -197,7 +198,7 @@ inline void TimerControl::TimerThread::futex_wait(int signal_pending, const time
                + std::chrono::nanoseconds{abstime.tv_nsec};
         std::chrono::system_clock::time_point tp(
                 std::chrono::duration_cast<std::chrono::system_clock::duration>(d));
-        condition_.wait_until(lock_gaurd, &tp);
+        condition_.wait_until(lock_gaurd, tp);
     }
 #else
     p::base::futex_wait((int*)&signal_pending_, signal_pending, &abstime);

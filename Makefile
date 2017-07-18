@@ -42,7 +42,7 @@ endif
 P_AS=$(QUIET_C)$(CC) $(FINAL_ASFLAGS)
 P_CC=$(QUIET_C)$(CC) $(FINAL_CFLAGS)
 P_CXX=$(QUIET_CXX)$(CXX) $(FINAL_CXXFLAGS)
-P_LINK=$(QUIET_LINK)$(CXX) $(FINAL_LDFLAGS) $(FINAL_LIBS)
+P_LINK=$(QUIET_LINK)$(CXX) -Wno-unused-command-line-argument $(FINAL_LDFLAGS) $(FINAL_LIBS)
 P_AR=$(QUIET_AR)$(AR) crs
 
 .PHONY: all clean
@@ -67,7 +67,7 @@ $(BUILD_DIR)/%.cpp.o: %.cpp
 
 # exe binary
 %.exe: $(BUILD_DIR)/%.cpp.o $(BUILD_DIR)/p-base.a
-	$(P_LINK) -o $@ $^
+	$(P_LINK) $^ -o $@
 
 clean:
 	$(RM) -r $(BUILD_DIR)
