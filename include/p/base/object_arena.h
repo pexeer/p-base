@@ -23,7 +23,7 @@ public:
         T                       items[N];
     };
 
-    static T* get(uint64_t* id) {
+    static T* acquire(uint64_t* id) {
         return global_group_.add_block(id)->items;
     }
 

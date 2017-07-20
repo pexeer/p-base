@@ -27,7 +27,7 @@ struct P_CACHELINE_ALIGNMENT TimerControl::Timer {
         if (version.load(std::memory_order_relaxed) != base_version) {
             assert(version == (base_version + 2));
             //timer_id += 0x300000000;
-            TimerFactory::put(timer_id);
+            TimerFactory::release(timer_id);
             return true;
         }
 
@@ -41,14 +41,14 @@ struct P_CACHELINE_ALIGNMENT TimerControl::Timer {
             // will run this Timer
             func(arg);
             version.store(base_version + 2, std::memory_order_relaxed);
-            TimerFactory::put(timer_id);
+            TimerFactory::release(timer_id);
 
             return true;
         }
 
         // Timer canceled by others
         assert(version.load() == (base_version + 2));
-        TimerFactory::put(timer_id);
+        TimerFactory::release(timer_id);
 
         return false;
     }
@@ -105,7 +105,7 @@ TimerControl::TimerThread::~TimerThread() {
         while (tm_list) {
             tmp = tm_list;
             tm_list = tm_list->next;
-            TimerFactory::put(tmp->timer_id);
+            TimerFactory::release(tmp->timer_id);
         }
     }
 
@@ -183,7 +183,7 @@ void TimerControl::TimerThread::Run() {
 
     for (size_t i = 0; i < tm_heap.size(); ++i) {
         tmp = tm_heap[i];
-        TimerFactory::put(tmp->timer_id);
+        TimerFactory::release(tmp->timer_id);
     }
 
     //LOG_INFO << "TimerThread exited.";
@@ -237,7 +237,7 @@ inline void TimerControl::TimerThread::add_timer(Timer* tm) {
 
 TimerId TimerControl::add_timer(void (*func)(void*), void* arg, const timespec& abstime) {
     TimerId timer_id;
-    Timer* tm = TimerFactory::get(&timer_id);
+    Timer* tm = TimerFactory::acquire(&timer_id);
     timer_id += 0x300000000;    // add version
     tm->timer_id = timer_id;
     tm->next = nullptr;

@@ -53,16 +53,16 @@ template <typename T> struct ObjectGroupItemSize {
 
 template <typename T> class ObjectPool {
 public:
-    static T* get() {
-        return tls_local_object_group_.get();
+    static T* acquire() {
+        return tls_local_object_group_.acquire();
     }
 
-    static T*get(void* arg) {
-        return tls_local_object_group_.get(arg);
+    static T* acquire(void* arg) {
+        return tls_local_object_group_.acquire(arg);
     }
 
-    static void put(T* obj) {
-        tls_local_object_group_.put(obj);
+    static void release(T* obj) {
+        tls_local_object_group_.release(obj);
     }
 
 private:
@@ -76,7 +76,7 @@ private:
 
     class LocalObjectGroup {
     public:
-        T * get() {
+        T * acquire() {
             if (object_group_ptr_) {
                 if (object_group_ptr_->size > 0) {
                     return object_group_ptr_->items[--object_group_ptr_->size];
@@ -97,7 +97,7 @@ private:
             return T::NewThis();
         }
 
-        T * get(void* arg) {
+        T * acquire(void* arg) {
             if (object_group_ptr_) {
                 if (object_group_ptr_->size > 0) {
                     return object_group_ptr_->items[--object_group_ptr_->size];
@@ -118,7 +118,7 @@ private:
             return T::NewThis(arg);
         }
 
-        void put(T* obj) {
+        void release(T* obj) {
             if (object_group_ptr_) {
                 if (object_group_ptr_->size < kObjectGroupItemSize) {
                     object_group_ptr_->items[(object_group_ptr_->size)++] = obj;
@@ -151,7 +151,7 @@ private:
                 return ;
             }
 
-            object_group_ptr_ = ObjectArena<ObjectGroup>::get(&object_group_id_);
+            object_group_ptr_ = ObjectArena<ObjectGroup>::acquire(&object_group_id_);
 
             uint64_t free_id = object_group_id_;
             for (size_t i = 1; i < ObjectArena<ObjectGroup>::N; ++i) {
@@ -188,12 +188,12 @@ template <typename T> struct ArenaObjectGroupItemSize {
 
 template <typename T> class ArenaObjectPool {
 public:
-    static T* get(uint64_t* obj_id) {
-        return tls_local_object_group_.get(obj_id);
+    static T* acquire(uint64_t* obj_id) {
+        return tls_local_object_group_.acquire(obj_id);
     }
 
-    static void put(uint64_t obj_id) {
-        tls_local_object_group_.put(obj_id);
+    static void release(uint64_t obj_id) {
+        tls_local_object_group_.release(obj_id);
     }
 
     static T* find(uint64_t obj_id) {
@@ -211,7 +211,7 @@ private:
 
     class LocalObjectGroup {
     public:
-        T * get(uint64_t* obj_id) {
+        T * acquire(uint64_t* obj_id) {
             if (object_group_ptr_) {
                 if (object_group_ptr_->size > 0) {
                     *obj_id = object_group_ptr_->items[--(object_group_ptr_->size)];
@@ -233,7 +233,7 @@ private:
             // get a free object group
             new_free_object_group();
 
-            T* items = ObjectArena<T>::get(obj_id);
+            T* items = ObjectArena<T>::acquire(obj_id);
             uint64_t tmp_id = *obj_id;
             object_group_ptr_->size = kObjectGroupItemSize - 1;
             for (size_t i = 1; i < kObjectGroupItemSize; ++i) {
@@ -242,7 +242,7 @@ private:
             return items;
         }
 
-        void put(uint64_t obj_id) {
+        void release(uint64_t obj_id) {
             if (object_group_ptr_) {
                 if (object_group_ptr_->size < kObjectGroupItemSize) {
                     object_group_ptr_->items[(object_group_ptr_->size)++] = obj_id;
@@ -275,7 +275,7 @@ private:
                 return ;
             }
 
-            object_group_ptr_ = ObjectArena<ObjectGroup>::get(&object_group_id_);
+            object_group_ptr_ = ObjectArena<ObjectGroup>::acquire(&object_group_id_);
 
             uint64_t free_id = object_group_id_;
             for (size_t i = 1; i < ObjectArena<ObjectGroup>::N; ++i) {
