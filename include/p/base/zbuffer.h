@@ -34,6 +34,8 @@ public:
             return false;
         }
 
+        const char* begin() const ;
+
         void inc_ref() const ;
 
         void dec_ref() const ;
@@ -111,7 +113,12 @@ public:
 
     int append(const char* buf, size_t count);
 
-    size_t popn(const char* buf, size_t count);
+    size_t popn(char* buf, size_t count) {
+        if (array()) {
+            return array_popn(buf, count);
+        }
+        return simple_popn(buf, count);
+    }
 
     void array_resize();
 
@@ -129,6 +136,10 @@ protected:
     void array_append_ref(const BlockRef& ref);
 
     void transfor_to_array();
+
+    size_t array_popn(char* buf, size_t count);
+
+    size_t simple_popn(char* buf, size_t count);
 
 private:
     union {

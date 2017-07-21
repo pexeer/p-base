@@ -66,6 +66,10 @@ static_assert(sizeof(ZBuffer::Block) == 24, "invalid sizeof ZBuffer::Block");
 
 constexpr size_t kNormalBlockPayloadSize = ZBuffer::kNormalBlockSize - sizeof(ZBuffer::Block);
 
+inline const char* ZBuffer::BlockRef::begin() const {
+    return block->data + offset;
+}
+
 inline void ZBuffer::BlockRef::inc_ref() const {
     block->inc_ref();
 }
@@ -357,52 +361,73 @@ int ZBuffer::append(const char* buf, size_t count) {
         ::memcpy(block->data + block->offset, buf + copied, left);
 
         const ZBuffer::BlockRef ref = {(uint32_t)block->offset, (uint32_t)left, block};
+        block->offset += left; // must befor append_ref
         append_ref(ref);
-        block->offset += left;
         copied += left;
     }
     return 0;
 }
 
-#if 0
-int ZBuffer::popn() {
-        if (!array()) {
-            if (!first_.length) {
-                return 0;
-            }
+size_t ZBuffer::simple_popn(char* buf, size_t count) {
+    if (!first_.length) {
+        return 0;
+    }
 
-            if (first_.length > count) {
-                first_.offset += count;
-                first_.length -= count;
-                ::memcpy(buf, count)
-                return count;
-            }
+    if (first_.length > count) {
+        ::memcpy(buf, first_.begin(), count);
+        first_.offset += count;
+        first_.length -= count;
+        return count;
+    }
 
-            size_t copied = first_.length;
-            count -= copied;
-            ::memcpy(buf, , copied);
-            first_.release();
-            if (!second_.block) {
-                return copied;
-            }
-            buf += copied;
+    size_t copied = first_.length;
+    ::memcpy(buf, first_.begin(), copied);
+    count -= copied;
+    first_.release();
 
-            if (count > second_.length) {
-                count = second_.length;
-                ::memcpy(buf, , count);
-                second_.release();
-                return copied + count;
-            }
+    if (!second_.block) {
+        return copied;
+    }
 
-            ::memcpy(buf, , count);
-            second_.offset += count;
-            second_.length -= count;
-            first_ = second_;
-            second_.reset();
-            return copied + count;
-        }
+    if (count >= second_.length) {
+        count = second_.length;
+        ::memcpy(buf + copied, second_.begin(), count);
+        second_.release();
+        return copied + count;
+    }
+
+    ::memcpy(buf + copied, second_.begin(), count);
+    second_.offset += count;
+    second_.length -= count;
+    first_ = second_;
+    second_.reset();
+    return copied + count;
 }
-#endif
+
+size_t ZBuffer::array_popn(char* buf, size_t count) {
+    size_t copied = 0;
+
+    uint32_t i = 0;
+    for (; i < refs_num; ++i) {
+        BlockRef& ref = refs_array->ref_at(i);
+        if (ref.length > count) {
+            ::memcpy(buf + copied, ref.begin(), count);
+            copied += count;
+            ref.offset += count;
+            ref.length -= count;
+            break;
+        }
+        ::memcpy(buf + copied, ref.begin(), ref.length);
+        copied += ref.length;
+        count -= ref.length;
+        ref.release();
+    }
+
+    refs_array->nbytes -= copied;
+    refs_array->begin += i;
+    refs_num -= i;
+    return copied;
+}
 
 } // end namespace base
 } // end namespace p
