@@ -13,7 +13,7 @@ namespace base {
 class ZBuffer {
 public:
     // 8kbytes for each normal block
-    static constexpr size_t kBlockSize = 16 * 1024Ul;
+    static constexpr size_t kNormalBlockSize = 16 * 1024Ul;
     static constexpr size_t kInitBlockRefArraySize = 16UL;
     static constexpr size_t kBlockCachedPerThread = 16UL;
 
@@ -26,6 +26,21 @@ public:
             block = nullptr;
         }
 
+        bool merge(const BlockRef& rhs) {
+            if ((block == rhs.block) && (offset + length == rhs.offset)) {
+                length += rhs.length;
+                return true;
+            }
+            return false;
+        }
+
+        void inc_ref() const ;
+
+        void dec_ref() const ;
+
+        void release();
+
+    public:
         uint32_t offset;
         uint32_t length;
         Block*   block;
@@ -33,6 +48,15 @@ public:
     static_assert(sizeof(BlockRef) == 16, "invalid sizeof BlockRef");
 
     struct BlockRefArray {
+        BlockRefArray(uint32_t cap) : nbytes{0}, begin{0}, cap_mask(cap - 1) {}
+
+        BlockRefArray(BlockRefArray* old, uint32_t cap) : nbytes{old->nbytes},
+                begin{old->begin}, cap_mask{cap - 1} {
+            for (uint32_t i = 0; i <= old->cap_mask; ++i) {
+                refs[i] = old->refs[i];
+            }
+        }
+
         uint32_t capacity() const {
             return cap_mask + 1;
         }
@@ -45,6 +69,7 @@ public:
             return refs[(begin + i) & cap_mask];
         }
 
+    public:
         uint64_t    nbytes;
         uint32_t    begin;
         uint32_t    cap_mask;
@@ -58,7 +83,9 @@ public:
         second_.reset();
     }
 
-    // this is BlockArray
+    ~ZBuffer();
+
+    // this is BlockRefArray
     bool array() const {
         return magic_num < 0;
     }
@@ -81,6 +108,27 @@ public:
 
         return 1 + refs_num;
     }
+
+    int append(const char* buf, size_t count);
+
+    size_t popn(const char* buf, size_t count);
+
+    void array_resize();
+
+    static size_t total_block_number();
+
+    static size_t total_block_memory();
+
+protected:
+    void append_ref(BlockRef&& ref);
+
+    void append_ref(const BlockRef& ref);
+
+    void array_append_ref(BlockRef&& ref);
+
+    void array_append_ref(const BlockRef& ref);
+
+    void transfor_to_array();
 
 private:
     union {
