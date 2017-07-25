@@ -3,16 +3,16 @@
 
 #pragma once
 
-#include <sys/time.h>
-#include <stdint.h>
-#include <time.h>
 #include <atomic>
 #include <mutex>
+#include <stdint.h>
+#include <sys/time.h>
 #include <thread>
+#include <time.h>
 
+#include "p/base/logging.h"
 #include "p/base/macros.h"
 #include "p/base/time.h"
-#include "p/base/logging.h"
 
 namespace p {
 namespace base {
@@ -22,13 +22,13 @@ typedef uint64_t TimerId;
 
 class TimerControl {
 public:
-    TimerControl(uint32_t bucket_number) : timer_thread_(bucket_number) { }
+    TimerControl(uint32_t bucket_number) : timer_thread_(bucket_number) {}
 
     // return TimerId != 0 when add_timer success
-    TimerId add_timer(void (*func)(void*), void* arg, const timespec& abstime);
+    TimerId add_timer(void (*func)(void *), void *arg, const timespec &abstime);
 
     // return TimerId != 0 when success
-    TimerId add_timer_us(void (*func)(void*), void* arg, uint64_t delay_us) {
+    TimerId add_timer_us(void (*func)(void *), void *arg, uint64_t delay_us) {
         timespec abstime = us_to_timespec(gettimeofday_us() + delay_us);
         return add_timer(func, arg, abstime);
     }
@@ -45,53 +45,54 @@ public:
     struct Timer;
 
     class P_CACHELINE_ALIGNMENT TimerBucket {
-        public:
-            TimerBucket();
+    public:
+        TimerBucket();
 
-            Timer* reset();
+        Timer *reset();
 
-            bool add_timer(Timer* tm);
+        bool add_timer(Timer *tm);
 
-        private:
-            std::mutex          mutex_;
-            Timer*              head_;
-            uint64_t            min_timestamp_;
+    private:
+        std::mutex mutex_;
+        Timer *head_;
+        uint64_t min_timestamp_;
     };
 
     class TimerThread {
-        public:
-            TimerThread(uint32_t bucket_number);
+    public:
+        TimerThread(uint32_t bucket_number);
 
-            ~TimerThread();
+        ~TimerThread();
 
-            void add_timer(Timer* tm);
+        void add_timer(Timer *tm);
 
-            void stop_and_join();
+        void stop_and_join();
 
-            void Run();
+        void Run();
 
-            void futex_wait(int signal_pending, const timespec& abstime);
+        void futex_wait(int signal_pending, const timespec &abstime);
 
-            void futex_wake(int signal_pending);
+        void futex_wake(int signal_pending);
 
-        private:
-            size_t              bucket_number_;
-            TimerBucket*        bucket_array_;
-            std::atomic<int>    stop_;
-            std::thread         thread_;
+    private:
+        size_t bucket_number_;
+        TimerBucket *bucket_array_;
+        std::atomic<int> stop_;
+        std::thread thread_;
 
-            P_CACHELINE_ALIGNMENT
-            std::atomic<uint64_t>       min_timestamp_;
-            std::atomic<int>            signal_pending_;
+        P_CACHELINE_ALIGNMENT
+        std::atomic<uint64_t> min_timestamp_;
+        std::atomic<int> signal_pending_;
 #if !defined(P_OS_LINUX)
-            P_CACHELINE_ALIGNMENT
-            std::mutex                  mutex_;
-            std::condition_variable     condition_;
+        P_CACHELINE_ALIGNMENT
+        std::mutex mutex_;
+        std::condition_variable condition_;
 #endif
     };
 
 private:
-    TimerThread     timer_thread_;
+    TimerThread timer_thread_;
+
 private:
     P_DISALLOW_COPY(TimerControl);
 };

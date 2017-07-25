@@ -6,13 +6,12 @@
 #include <stdarg.h>
 #include <string.h>
 
-#include "p/base/utils.h"
 #include "p/base/log.h"
+#include "p/base/utils.h"
 
 namespace p {
-namespace base {
+namespace base {} // end namespace base
 
-
-} // end namespace base
 using base::noflush;
+
 } // end namespace p

@@ -79,92 +79,73 @@
 namespace p {
 namespace base {
 
+template <typename T> class LinkNode {
+public:
+    LinkNode() : previous_(0), next_(0) {}
+    LinkNode(LinkNode<T> *previous, LinkNode<T> *next) : previous_(previous), next_(next) {}
 
-template <typename T>
-class LinkNode {
- public:
-  LinkNode() : previous_(0), next_(0) {}
-  LinkNode(LinkNode<T>* previous, LinkNode<T>* next)
-      : previous_(previous), next_(next) {}
+    // Insert |this| into the linked list, before |e|.
+    void InsertBefore(LinkNode<T> *e) {
+        this->next_ = e;
+        this->previous_ = e->previous_;
+        e->previous_->next_ = this;
+        e->previous_ = this;
+    }
 
-  // Insert |this| into the linked list, before |e|.
-  void InsertBefore(LinkNode<T>* e) {
-    this->next_ = e;
-    this->previous_ = e->previous_;
-    e->previous_->next_ = this;
-    e->previous_ = this;
-  }
+    // Insert |this| into the linked list, after |e|.
+    void InsertAfter(LinkNode<T> *e) {
+        this->next_ = e->next_;
+        this->previous_ = e;
+        e->next_->previous_ = this;
+        e->next_ = this;
+    }
 
-  // Insert |this| into the linked list, after |e|.
-  void InsertAfter(LinkNode<T>* e) {
-    this->next_ = e->next_;
-    this->previous_ = e;
-    e->next_->previous_ = this;
-    e->next_ = this;
-  }
+    // Remove |this| from the linked list.
+    void RemoveFromList() {
+        this->previous_->next_ = this->next_;
+        this->next_->previous_ = this->previous_;
+    }
 
-  // Remove |this| from the linked list.
-  void RemoveFromList() {
-    this->previous_->next_ = this->next_;
-    this->next_->previous_ = this->previous_;
-  }
+    LinkNode<T> *previous() const { return previous_; }
 
-  LinkNode<T>* previous() const {
-    return previous_;
-  }
+    LinkNode<T> *next() const { return next_; }
 
-  LinkNode<T>* next() const {
-    return next_;
-  }
+    // Cast from the node-type to the value type.
+    const T *value() const { return static_cast<const T *>(this); }
 
-  // Cast from the node-type to the value type.
-  const T* value() const {
-    return static_cast<const T*>(this);
-  }
+    T *value() { return static_cast<T *>(this); }
 
-  T* value() {
-    return static_cast<T*>(this);
-  }
+    // Work around a Clang bug reported upstream:
+    //   http://llvm.org/bugs/show_bug.cgi?id=7974
+    // TODO(evanm): remove this and its sole caller.
+    void set(LinkNode<T> *prev, LinkNode<T> *next) {
+        previous_ = prev;
+        next_ = next;
+    }
 
-  // Work around a Clang bug reported upstream:
-  //   http://llvm.org/bugs/show_bug.cgi?id=7974
-  // TODO(evanm): remove this and its sole caller.
-  void set(LinkNode<T>* prev, LinkNode<T>* next) {
-    previous_ = prev; next_ = next;
-  }
-
- private:
-  LinkNode<T>* previous_;
-  LinkNode<T>* next_;
+private:
+    LinkNode<T> *previous_;
+    LinkNode<T> *next_;
 };
 
-template <typename T>
-class LinkedList {
- public:
-  // The "root" node is self-referential, and forms the basis of a circular
-  // list (root_.next() will point back to the start of the list,
-  // and root_->previous() wraps around to the end of the list).
-  LinkedList() { root_.set(&root_, &root_); }
+template <typename T> class LinkedList {
+public:
+    // The "root" node is self-referential, and forms the basis of a circular
+    // list (root_.next() will point back to the start of the list,
+    // and root_->previous() wraps around to the end of the list).
+    LinkedList() { root_.set(&root_, &root_); }
 
-  // Appends |e| to the end of the linked list.
-  void Append(LinkNode<T>* e) {
-    e->InsertBefore(&root_);
-  }
+    // Appends |e| to the end of the linked list.
+    void Append(LinkNode<T> *e) { e->InsertBefore(&root_); }
 
-  LinkNode<T>* head() const {
-    return root_.next();
-  }
+    LinkNode<T> *head() const { return root_.next(); }
 
-  LinkNode<T>* tail() const {
-    return root_.previous();
-  }
+    LinkNode<T> *tail() const { return root_.previous(); }
 
-  const LinkNode<T>* end() const {
-    return &root_;
-  }
+    const LinkNode<T> *end() const { return &root_; }
 
- private:
-  LinkNode<T> root_;
+private:
+    LinkNode<T> root_;
 };
 
 } // end namespace base

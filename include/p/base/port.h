@@ -6,11 +6,11 @@
 #include "p/base/macros.h"
 
 #if defined(P_OS_LINUX)
-#include <unistd.h>                 // SYS_gettid
-#include <sys/syscall.h>            // syscall
-#include <error.h>                  // strerror
+#include <error.h>       // strerror
+#include <sys/syscall.h> // syscall
+#include <unistd.h>      // SYS_gettid
 #else
-#include <thread>                   // pthread_threadid_np
+#include <thread> // pthread_threadid_np
 #endif
 
 namespace p {
@@ -29,15 +29,11 @@ inline int gettid() {
 }
 
 #if defined(P_OS_LINUX)
-#include <sys/syscall.h>
 #include <linux/futex.h>
+#include <sys/syscall.h>
 
-inline long sys_futex(void *addr1,
-        int op,
-        int val1,
-        struct timespec *timeout,
-        void *addr2,
-        int val3) {
+inline long sys_futex(void *addr1, int op, int val1, struct timespec *timeout, void *addr2,
+                      int val3) {
     return syscall(SYS_futex, addr1, op, val1, timeout, addr2, val3);
 }
 
@@ -50,7 +46,6 @@ inline int futex_wake(int *uaddr, int wake_num) {
 }
 
 #endif
-
 }
 }
 

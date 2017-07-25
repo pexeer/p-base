@@ -2,13 +2,13 @@
 // Licensed under a BSD-style license that can be found in the LICENSE file.
 
 #include "p/base/socket.h"
-#include <fcntl.h>          // fctnl
-#include <errno.h>          // errno
-#include <string.h>         // memset
+#include <errno.h>  // errno
+#include <fcntl.h>  // fctnl
+#include <string.h> // memset
 
-#include <sys/socket.h>              // setsockopt
-#include <netinet/tcp.h>             // TCP_NODELAY
-#include <netinet/in.h>              // IPPROTO_TCP
+#include <netinet/in.h>  // IPPROTO_TCP
+#include <netinet/tcp.h> // TCP_NODELAY
+#include <sys/socket.h>  // setsockopt
 
 namespace p {
 namespace base {
@@ -35,64 +35,63 @@ inline int Socket::set_close_on_exec() {
 
 inline int Socket::set_no_delay() {
     int flag = 1;
-    return setsockopt(fd_, IPPROTO_TCP, TCP_NODELAY, (char*)&flag, sizeof(flag));
+    return setsockopt(fd_, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(flag));
 }
 
 int Socket::Connect(const EndPoint &endpoint) {
-  fd_ = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-  if (fd_ < 0) {
-    return errno;
-  }
-  struct sockaddr_in servaddr;
-  memset(&servaddr, 0, sizeof(servaddr));
-  servaddr.sin_family = AF_INET;
-  servaddr.sin_port = htons(endpoint.port());
-  servaddr.sin_addr.s_addr = endpoint.ip();
+    fd_ = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (fd_ < 0) {
+        return errno;
+    }
+    struct sockaddr_in servaddr;
+    memset(&servaddr, 0, sizeof(servaddr));
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_port = htons(endpoint.port());
+    servaddr.sin_addr.s_addr = endpoint.ip();
 
-  set_non_block();
-  set_close_on_exec();
-  if (::connect(fd_, (struct sockaddr *)&servaddr, sizeof(struct sockaddr)) < 0) {
-    return errno;
-  }
-  return 0;
+    set_non_block();
+    set_close_on_exec();
+    if (::connect(fd_, (struct sockaddr *)&servaddr, sizeof(struct sockaddr)) < 0) {
+        return errno;
+    }
+    return 0;
 }
 
 int Socket::Listen(const EndPoint &endpoint) {
-  fd_ = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-  if (fd_ < 0) {
-    return errno;
-  }
+    fd_ = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (fd_ < 0) {
+        return errno;
+    }
 
-  struct sockaddr_in servaddr;
-  memset(&servaddr, 0, sizeof(servaddr));
-  servaddr.sin_family = AF_INET;
-  servaddr.sin_port = htons(endpoint.port());
-  servaddr.sin_addr.s_addr = endpoint.ip();
-  if (::bind(fd_, (struct sockaddr *)&servaddr, sizeof(struct sockaddr)) < 0) {
-    return false;
-  }
+    struct sockaddr_in servaddr;
+    memset(&servaddr, 0, sizeof(servaddr));
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_port = htons(endpoint.port());
+    servaddr.sin_addr.s_addr = endpoint.ip();
+    if (::bind(fd_, (struct sockaddr *)&servaddr, sizeof(struct sockaddr)) < 0) {
+        return false;
+    }
 
-  if (::listen(fd_, SOMAXCONN) < 0) {
-    return errno;
-  }
-  return 0;
+    if (::listen(fd_, SOMAXCONN) < 0) {
+        return errno;
+    }
+    return 0;
 }
 
-int Socket::Accept(Socket* new_s) {
+int Socket::Accept(Socket *new_s) {
     struct sockaddr_in new_addr;
     memset(&new_addr, 0, sizeof(new_addr));
     socklen_t addrlen = static_cast<socklen_t>(sizeof(new_addr));
 
     int fd = -1;
 #ifdef P_OS_MACOSX
-    fd = ::accept(fd_, (struct sockaddr*)&new_addr, &addrlen);
+    fd = ::accept(fd_, (struct sockaddr *)&new_addr, &addrlen);
     if (fd >= 0) {
         set_non_block();
         set_close_on_exec();
     }
 #else
-    fd = ::accept4(fd_, (struct sockaddr*)&new_addr, &addrlen,
-                SOCK_NONBLOCK | SOCK_CLOEXEC);
+    fd = ::accept4(fd_, (struct sockaddr *)&new_addr, &addrlen, SOCK_NONBLOCK | SOCK_CLOEXEC);
 #endif
     if (fd < 0) {
         return errno;

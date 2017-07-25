@@ -5,48 +5,46 @@
 
 #include "p/base/endpoint.h"
 #include "p/base/macros.h" // DISALLOW_COPY
-#include <unistd.h>
-#include <sys/socket.h>
 #include <atomic>
+#include <sys/socket.h>
+#include <unistd.h>
 
 namespace p {
 namespace base {
 
 class Socket {
 public:
-  Socket() {}
+    Socket() {}
 
-  int Connect(const EndPoint &endpoint);
+    int Connect(const EndPoint &endpoint);
 
-  int Listen(const EndPoint &endpoint);
+    int Listen(const EndPoint &endpoint);
 
-  int set_non_block();
+    int set_non_block();
 
-  int set_close_on_exec();
+    int set_close_on_exec();
 
-  int set_no_delay();
+    int set_no_delay();
 
-  int Accept(Socket* new_s);
+    int Accept(Socket *new_s);
 
-  ssize_t Write(const void *buf, size_t count) {
-    return ::write(fd_, buf, count);
-  }
+    ssize_t Write(const void *buf, size_t count) { return ::write(fd_, buf, count); }
 
-  ssize_t Read(void *buf, size_t count) { return ::read(fd_, buf, count); }
+    ssize_t Read(void *buf, size_t count) { return ::read(fd_, buf, count); }
 
-  ~Socket() {
-    if (fd_ >= 0) {
-      ::close(fd_);
+    ~Socket() {
+        if (fd_ >= 0) {
+            ::close(fd_);
+        }
     }
-  }
 
-  explicit operator bool() const { return fd_ >= 0; }
-
-private:
-  std::atomic<int32_t> fd_ = {-1};
+    explicit operator bool() const { return fd_ >= 0; }
 
 private:
-  P_DISALLOW_COPY(Socket);
+    std::atomic<int32_t> fd_ = {-1};
+
+private:
+    P_DISALLOW_COPY(Socket);
 };
 
 } // end namespace base

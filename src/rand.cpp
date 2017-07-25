@@ -5,8 +5,8 @@
 // http://xoroshiro.di.unimi.it/xoroshiro128plus.c
 
 #include "p/base/rand.h"
-#include <random>
 #include <limits>
+#include <random>
 
 namespace p {
 namespace base {
@@ -22,7 +22,7 @@ namespace base {
    up to (and included) 16TB, with the exception of binary rank tests,
    which fail due to the lowest bit being an LFSR; all other bits pass all
    tests. We suggest to use a sign test to extract a random Boolean value.
-   
+
    Note that the generator uses a simulated rotate operation, which most C
    compilers will turn into a single instruction. In Java, you can use
    Long.rotateLeft(). In languages that do not make low-level rotation
@@ -32,9 +32,7 @@ namespace base {
    a 64-bit seed, we suggest to seed a splitmix64 generator and use its
    output to fill s. */
 
-static inline uint64_t rotl(const uint64_t x, int k) {
-    return (x << k) | (x >> (64 - k));
-}
+static inline uint64_t rotl(const uint64_t x, int k) { return (x << k) | (x >> (64 - k)); }
 
 thread_local class FastRand {
 public:
@@ -52,7 +50,7 @@ public:
 
         s1 ^= s0;
         s[0] = rotl(s0, 55) ^ s1 ^ (s1 << 14); // a, b
-        s[1] = rotl(s1, 36); // c
+        s[1] = rotl(s1, 36);                   // c
         return result;
     }
 
@@ -60,12 +58,12 @@ public:
        to 2^64 calls to next(); it can be used to generate 2^64
        non-overlapping subsequences for parallel computations. */
     void jump(void) {
-        static const uint64_t JUMP[] = { 0xbeac0467eba5facb, 0xd86b048b86aa9922 };
+        static const uint64_t JUMP[] = {0xbeac0467eba5facb, 0xd86b048b86aa9922};
 
         uint64_t s0 = 0;
         uint64_t s1 = 0;
-        for(size_t i = 0; i < (sizeof(JUMP) / sizeof(JUMP[0])); i++) {
-            for(int b = 0; b < 64; b++) {
+        for (size_t i = 0; i < (sizeof(JUMP) / sizeof(JUMP[0])); i++) {
+            for (int b = 0; b < 64; b++) {
                 if (JUMP[i] & UINT64_C(1) << b) {
                     s0 ^= s[0];
                     s1 ^= s[1];
@@ -77,13 +75,12 @@ public:
         s[0] = s0;
         s[1] = s1;
     }
+
 private:
     uint64_t s[2];
 } tls_fast_rand;
 
-uint64_t fast_rand() {
-    return tls_fast_rand.next();
-}
+uint64_t fast_rand() { return tls_fast_rand.next(); }
 
 uint64_t fast_rand(uint64_t rand_max) {
     if (rand_max) {

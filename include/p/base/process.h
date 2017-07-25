@@ -9,11 +9,11 @@ namespace p {
 namespace base {
 
 namespace Process {
-    extern const int kPid;
+extern const int kPid;
 
-    extern const char* const kProcName;
+extern const char *const kProcName;
 
-    extern const uint64_t kPageSize;
+extern const uint64_t kPageSize;
 };
 
 } // end namespace base

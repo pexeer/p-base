@@ -24,7 +24,7 @@ constexpr const char *LogLevelName[] = {" TRACE ", " DEBUG ", "  INFO ",
 extern LogLevel g_log_level;
 
 namespace LogDate {
-const char* get_log_date_str();
+const char *get_log_date_str();
 
 #define LOG_TIME_TO_US
 
@@ -63,36 +63,34 @@ private:
 
 class SourceFile {
 public:
-    template<int N>
-    inline SourceFile(const char(&file_name)[N], int line) :
-        file_name_(file_name), name_size_(N - 1), file_line_(line) {
-        char* slash = __builtin_strrchr(file_name_, '/');
+    template <int N>
+    inline SourceFile(const char (&file_name)[N], int line)
+        : file_name_(file_name), name_size_(N - 1), file_line_(line) {
+        char *slash = __builtin_strrchr(file_name_, '/');
         if (slash) {
             file_name_ = slash + 1;
             name_size_ -= static_cast<int>(file_name_ - file_name);
-            //name_size_ = __builtin_strlen(file_name_);
+            // name_size_ = __builtin_strlen(file_name_);
         }
     }
 
     int name_size() const { return name_size_; }
 
-    const char* file_name() const {
-        return file_name_;
-    }
+    const char *file_name() const { return file_name_; }
 
     int file_line() const { return file_line_; }
 
 private:
-    const char* file_name_;
-    int     name_size_;
-    int     file_line_;
+    const char *file_name_;
+    int name_size_;
+    int file_line_;
 };
 
 class LogSink {
 public:
     virtual ~LogSink() = 0;
 
-    virtual int sink(const char* msg, int len) = 0;
+    virtual int sink(const char *msg, int len) = 0;
 };
 
 bool stop_logging();

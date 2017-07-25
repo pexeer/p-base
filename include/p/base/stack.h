@@ -3,9 +3,9 @@
 
 #pragma once
 
+#include "p/base/logging.h"
 #include <atomic>
 #include <mutex>
-#include "p/base/logging.h"
 
 namespace p {
 namespace base {
@@ -45,29 +45,27 @@ private:
 
 template <class T> class LinkedStack {
 public:
-  LinkedStack() {
-    head_ = nullptr;
-  }
+    LinkedStack() { head_ = nullptr; }
 
-  void push(T* node) {
-      std::lock_guard<std::mutex>  lock_guard(mutex_);
-      node->next = head_;
-      head_ = node;
-  }
+    void push(T *node) {
+        std::lock_guard<std::mutex> lock_guard(mutex_);
+        node->next = head_;
+        head_ = node;
+    }
 
-  T *pop() {
-      std::lock_guard<std::mutex>  lock_guard(mutex_);
-      if (head_) {
-        T* tmp = head_;
-        head_ = head_->next;
-        return tmp;
-      }
-      return nullptr;
-  }
+    T *pop() {
+        std::lock_guard<std::mutex> lock_guard(mutex_);
+        if (head_) {
+            T *tmp = head_;
+            head_ = head_->next;
+            return tmp;
+        }
+        return nullptr;
+    }
 
 private:
-  T*            head_;
-  std::mutex    mutex_;
+    T *head_;
+    std::mutex mutex_;
 };
 
 } // end namespace base

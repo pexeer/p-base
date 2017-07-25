@@ -2,18 +2,18 @@
 // Licensed under a BSD-style license that can be found in the LICENSE file.
 
 #include "p/base/process.h"
-#include <unistd.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 namespace p {
 namespace base {
 
 namespace Process {
-    const int kPid = ::getpid();
+const int kPid = ::getpid();
 
-    const char* const kProcName = "TODO";
+const char *const kProcName = "TODO";
 
-    const uint64_t kPageSize = ::getpagesize();
+const uint64_t kPageSize = ::getpagesize();
 };
 
 } // end namespace base
