@@ -12,9 +12,9 @@
 namespace p {
 namespace base {
 
-class Socket {
+class SocketFd {
 public:
-    Socket() {}
+    SocketFd() {}
 
     int Connect(const EndPoint &endpoint);
 
@@ -26,13 +26,13 @@ public:
 
     int set_no_delay();
 
-    int Accept(Socket *new_s);
+    int Accept(SocketFd *new_s);
 
     ssize_t Write(const void *buf, size_t count) { return ::write(fd_, buf, count); }
 
     ssize_t Read(void *buf, size_t count) { return ::read(fd_, buf, count); }
 
-    ~Socket() {
+    ~SocketFd() {
         if (fd_ >= 0) {
             ::close(fd_);
         }
@@ -40,11 +40,17 @@ public:
 
     explicit operator bool() const { return fd_ >= 0; }
 
-private:
-    std::atomic<int32_t> fd_ = {-1};
+    int release() {
+        int ret = fd_;
+        fd_ = -1;
+        return ret;
+    }
+
+protected:
+    int fd_ = -1;
 
 private:
-    P_DISALLOW_COPY(Socket);
+    P_DISALLOW_COPY(SocketFd);
 };
 
 } // end namespace base

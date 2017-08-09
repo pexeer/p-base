@@ -91,6 +91,26 @@ EndPoint::EndPoint(const char *ip_port) {
     ip_ = INADDR_NONE;
 }
 
+void EndPoint::ip_str(char* buf) const {
+    if (inet_ntop(AF_INET, &ip_, buf, INET_ADDRSTRLEN)) {
+        return ;
+    }
+
+    in_addr_t tmp = INADDR_NONE;
+    inet_ntop(AF_INET, &tmp, buf, INET_ADDRSTRLEN);
+}
+
+int EndPoint::endpoint_str(char* buf) const {
+    ip_str(buf);
+    int i = 0;
+    while (buf[i]) {
+        ++i;
+    }
+    buf[i++] = ':';
+    i += snprintf(buf + i, 16, "%u", port_);
+    return i;
+}
+
 namespace {
 class Dummy : public EndPoint {
 public:

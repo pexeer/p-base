@@ -18,14 +18,14 @@ public:
         dummy_.next = nullptr;
     }
 
-    void push_back(T *node) {
+    void push_back(T* node) {
         node->next = nullptr;
-        T *p = tail_.exchange(node, std::memory_order_release);
+        T* p = tail_.exchange(node, std::memory_order_release);
         p->next = node;
     }
 
-    T *pop_front() {
-        T *p;
+    T* pop_front() {
+        T* p;
         do {
             p = head_.load(std::memory_order_acquire);
             if (p->next == nullptr) {
@@ -37,9 +37,9 @@ public:
     }
 
 private:
-    T dummy_;
-    P_CACHELINE_ALIGNMENT std::atomic<T *> head_;
-    P_CACHELINE_ALIGNMENT std::atomic<T *> tail_;
+    T                     dummy_;
+    P_CACHELINE_ALIGNMENT std::atomic<T*> head_;
+    P_CACHELINE_ALIGNMENT std::atomic<T*> tail_;
 };
 
 } // end namespace base

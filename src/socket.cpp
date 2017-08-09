@@ -14,7 +14,7 @@ namespace p {
 namespace base {
 
 // set non-block flag for fd_
-inline int Socket::set_non_block() {
+inline int SocketFd::set_non_block() {
     int flags = ::fcntl(fd_, F_GETFL, 0);
     if (flags > 0) {
         flags |= O_NONBLOCK;
@@ -24,7 +24,7 @@ inline int Socket::set_non_block() {
 }
 
 // set close-on-exec flag for fd_
-inline int Socket::set_close_on_exec() {
+inline int SocketFd::set_close_on_exec() {
     int flags = ::fcntl(fd_, F_GETFD, 0);
     if (flags > 0) {
         flags |= FD_CLOEXEC;
@@ -33,12 +33,12 @@ inline int Socket::set_close_on_exec() {
     return flags;
 }
 
-inline int Socket::set_no_delay() {
+inline int SocketFd::set_no_delay() {
     int flag = 1;
     return setsockopt(fd_, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(flag));
 }
 
-int Socket::Connect(const EndPoint &endpoint) {
+int SocketFd::Connect(const EndPoint &endpoint) {
     fd_ = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (fd_ < 0) {
         return errno;
@@ -57,7 +57,7 @@ int Socket::Connect(const EndPoint &endpoint) {
     return 0;
 }
 
-int Socket::Listen(const EndPoint &endpoint) {
+int SocketFd::Listen(const EndPoint &endpoint) {
     fd_ = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (fd_ < 0) {
         return errno;
@@ -72,26 +72,28 @@ int Socket::Listen(const EndPoint &endpoint) {
         return false;
     }
 
+    set_non_block();
+    set_close_on_exec();
+
     if (::listen(fd_, SOMAXCONN) < 0) {
         return errno;
     }
     return 0;
 }
 
-int Socket::Accept(Socket *new_s) {
-    struct sockaddr_in new_addr;
-    memset(&new_addr, 0, sizeof(new_addr));
+int SocketFd::Accept(SocketFd *new_s) {
+    struct sockaddr new_addr;
     socklen_t addrlen = static_cast<socklen_t>(sizeof(new_addr));
 
     int fd = -1;
 #ifdef P_OS_MACOSX
-    fd = ::accept(fd_, (struct sockaddr *)&new_addr, &addrlen);
+    fd = ::accept(fd_, &new_addr, &addrlen);
     if (fd >= 0) {
         set_non_block();
         set_close_on_exec();
     }
 #else
-    fd = ::accept4(fd_, (struct sockaddr *)&new_addr, &addrlen, SOCK_NONBLOCK | SOCK_CLOEXEC);
+    fd = ::accept4(fd_, &new_addr, &addrlen, SOCK_NONBLOCK | SOCK_CLOEXEC);
 #endif
     if (fd < 0) {
         return errno;

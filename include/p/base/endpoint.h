@@ -4,6 +4,7 @@
 #pragma once
 
 #include <netinet/in.h> // in_addr, INADDR_NONE, INADDR_ANY
+#include "p/base/logging.h"
 
 namespace p {
 namespace base {
@@ -41,11 +42,17 @@ public:
 
     EndPoint(in_addr_t ip, unsigned short port) : ip_(ip), port_(port) {}
 
+    EndPoint(const sockaddr_in* s) : ip_(s->sin_addr.s_addr), port_(s->sin_port) {}
+
     explicit operator bool() const { return ip_ != INADDR_NONE; }
 
     unsigned short port() const { return port_; }
 
     in_addr_t ip() const { return ip_; }
+
+    void ip_str(char* buf) const;
+
+    int endpoint_str(char* buf) const;
 
     static in_addr_t local_ip() { return s_local_ip; }
 
@@ -62,6 +69,14 @@ private:
         };
     };
 };
+
+#ifdef LOG_TRACE
+inline LogStream&  operator <<(LogStream& os, const EndPoint& ep) {
+    char buf[32];
+    int len = ep.endpoint_str(buf);
+    return os(buf, len);
+}
+#endif
 
 } // end namespace base
 } // end namespace p
