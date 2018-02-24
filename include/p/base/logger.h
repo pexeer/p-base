@@ -101,7 +101,12 @@ public:
     }
 
     LogStream& operator<<(char* str) {
-        return *this << (const char*)str;
+        if (str) {
+            append(str);
+        } else {
+            append("null");
+        }
+        return *this;
     }
 
     LogStream& operator<<(const std::string& str) {

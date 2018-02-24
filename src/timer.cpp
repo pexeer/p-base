@@ -267,6 +267,7 @@ int TimerControl::cancel_timer(const TimerId timer_id) {
     return -1;
 }
 
+
 void TimerControl::stop_and_join() { timer_thread_.stop_and_join(); }
 
 } // end namespace base

@@ -58,6 +58,20 @@ public:
         return ret;
     }
 
+    int fd() const {
+        return fd_;
+    }
+
+    bool reset(int fd) {
+        if (fd_ >= 0) {
+            ::close(fd_);
+            fd_ = fd;
+            return true;
+        }
+        fd_ = fd;
+        return false;
+    }
+
 protected:
     int fd_ = -1;
 
