@@ -63,7 +63,7 @@ class Fuck {
 public:
     Fuck(int x, int y) : a(x), b(y) {}
 
-    p::base::LogStream& print(p::base::LogStream& l) const {
+    p::base::LogStream& Logger(p::base::LogStream& l) const {
         return l << '[' << a << ',' << b << ']';
     }
 
@@ -72,19 +72,19 @@ private:
     int b;
 };
 
-#if 0
 void fuck_me() {
     Fuck ffff(123, 345);
     LOG_DEBUG << ffff;
-    LOG_DEBUG << Fuck(12, 3238293) << Fuck(399434, 12);
+    LOG_DEBUG << Fuck(12, 3238293) << Fuck(399434, 12)
+            << p::base::HexUint32(0x123455)
+            << p::base::HexUint64(0x123455);
 }
-#endif
 
 int main() {
-    //fuck_me();
+    fuck_me();
 
 
-#if 1
+#if 0
     std::thread a1(f);
     std::thread a2(g);
 

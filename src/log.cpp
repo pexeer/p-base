@@ -82,11 +82,11 @@ private:
 
 // std::strftime
 #ifdef LOG_TIME_TO_US
-        snprintf(formatted_, sizeof(formatted_), "%04d%02d%02d-%02d:%02d:%02d.%06lu ",
+        snprintf(formatted_, sizeof(formatted_), "%04d%02d%02d-%02d:%02d:%02d:%06lu ",
                  local_tm.tm_year + 1900, local_tm.tm_mon + 1, local_tm.tm_mday, local_tm.tm_hour,
                  local_tm.tm_min, local_tm.tm_sec, (unsigned long)(timestamp % 1000000UL));
 #else
-        snprintf(formatted_, sizeof(formatted_), "%04d%02d%02d-%02d:%02d:%02d.%03lu ",
+        snprintf(formatted_, sizeof(formatted_), "%04d%02d%02d-%02d:%02d:%02d:%03lu ",
                  local_tm.tm_year + 1900, local_tm.tm_mon + 1, local_tm.tm_mday, local_tm.tm_hour,
                  local_tm.tm_min, local_tm.tm_sec, (unsigned long)((timestamp % 1000000UL) / 1000));
 #endif

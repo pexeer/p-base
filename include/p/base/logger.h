@@ -46,6 +46,20 @@ public:
         return *this;
     }
 
+    LogStream& HexLogger(uint64_t v) {
+        if (avial() >= kMaxNumericSize) {
+            cur_ += ConvertHexInteger(cur_, v);
+        }
+        return *this;
+    }
+
+    LogStream& HexLogger(uint32_t v) {
+        if (avial() >= kMaxNumericSize) {
+            cur_ += ConvertHexInteger(cur_, v);
+        }
+        return *this;
+    }
+
     LogStream& operator<<(unsigned long v) {
         _AppendInteger(v);
         return *this;
@@ -105,6 +119,15 @@ public:
 
     LogStream& operator<<(char v) {
         append(v);
+        return *this;
+    }
+
+    template<typename T>
+    LogStream& operator <<(const T* v) {
+        constexpr int kMaxPointerSize = 2 * sizeof(const void*) + 2;
+        if (avial() >= kMaxPointerSize) {
+            cur_ += ConvertPointer(cur_, v);
+        }
         return *this;
     }
 
@@ -202,8 +225,6 @@ private:
 
 typedef LogStream LogStream;
 
-inline LogStream& noflush(LogStream& ls) { return ls.noflush(); }
-
 class LogMessage {
 public:
     static bool set_wf_log_min_level(LogLevel wf_log_min_level);
@@ -225,6 +246,47 @@ public:
 
 private:
     P_DISALLOW_COPY(LogMessage);
+};
+
+template<typename T>
+LogStream& operator <<(LogStream& ls, const T& t) {
+    return t.Logger(ls);
+}
+
+template<typename T>
+LogStream& operator <<(LogStream& ls, const T* t) {
+    return ls.operator<<((const void*)t);
+}
+
+template<typename T>
+LogStream& operator <<(LogStream& ls, T* t) {
+    return ls.operator<<((void*)t);
+}
+
+struct noflush {
+    LogStream& Logger(LogStream& ls) const {
+        return ls.noflush();
+    }
+
+private:
+    P_DISALLOW_COPY(noflush);
+};
+
+struct HexUint64 {
+    HexUint64(uint64_t v) : value(v) {}
+    uint64_t value;
+    LogStream& Logger(LogStream& ls) const {
+        return ls.HexLogger(value);
+    }
+};
+
+struct HexUint32 {
+    HexUint32(uint32_t v) : value(v) {}
+    HexUint32(int32_t v) : value(v) {}
+    uint32_t value;
+    LogStream& Logger(LogStream& ls) const {
+        return ls.HexLogger(value);
+    }
 };
 
 } // end namespace base

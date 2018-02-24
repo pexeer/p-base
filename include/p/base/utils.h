@@ -35,6 +35,26 @@ template <typename T> size_t ConvertInteger(char *buf, T value) {
     return p - buf;
 }
 
+template<typename T>
+size_t ConvertHexInteger(char *buf, T value) {
+    static const char s_digits[] = "0123456789ABCDEFGHIGK";
+
+    char *p = buf;
+    uint64_t v = value;
+    uint32_t lsd;
+    do {
+        lsd = v % 16;
+        v /= 16;
+        *p++ = s_digits[lsd];
+    } while (v);
+
+    *p++ = 'x';
+    *p++ = '0';
+    *p = '\0';
+    std::reverse(buf, p);
+    return p - buf;
+}
+
 size_t ConvertPointer(char *buf, const void *value);
 
 } // end namespace base
