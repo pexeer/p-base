@@ -5,6 +5,7 @@
 
 #include <stdarg.h>
 #include <string.h>
+#include <string>
 
 #include "p/base/log.h"
 #include "p/base/utils.h"

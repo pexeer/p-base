@@ -2,6 +2,7 @@
 // Licensed under a BSD-style license that can be found in the LICENSE file.
 
 #pragma once
+#include <stdio.h>
 #include "p/base/macros.h"
 
 namespace p {
