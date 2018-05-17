@@ -25,9 +25,9 @@ struct ZBuffer::Block {
         g_block_memory.fetch_add(cap, std::memory_order_relaxed);
     }
 
-    bool full() const { return ((uint32_t)offset + 7) >= capacity; }
+    bool full() const { return (offset + 7) >= capacity; }
 
-    uint32_t left_space() const { return (uint32_t)capacity - offset; }
+    uint32_t left_space() const { return capacity - offset; }
 
     void inc_ref() { ref_num.fetch_add(1, std::memory_order_release); }
 
@@ -44,12 +44,13 @@ struct ZBuffer::Block {
     static Block *create_block(uint32_t size);
 
 public:
-    struct ZBuffer::Block *next;
-    std::atomic<int64_t> ref_num;
-    int32_t offset;
-    int32_t capacity;
-    char data[0];
+    struct ZBuffer::Block   *next;
+    std::atomic<int64_t>    ref_num;
+    uint32_t                offset;
+    uint32_t                capacity;
+    char                    data[0];
 };
+
 static_assert(sizeof(ZBuffer::Block) == 24, "invalid sizeof ZBuffer::Block");
 
 constexpr size_t kNormalBlockPayloadSize = ZBuffer::kNormalBlockSize - sizeof(ZBuffer::Block);
@@ -331,14 +332,14 @@ int ZBuffer::append(const char *buf, size_t count) {
     while (copied < count) {
         ZBuffer::Block *block = tls_block_cache.acquire_block();
 
-        size_t left_space = block->left_space();
-        size_t left = count - copied;
+        uint32_t left_space = block->left_space();
+        uint32_t left = count - copied;
         if (left > left_space) {
             left = left_space;
         }
         ::memcpy(block->data + block->offset, buf + copied, left);
 
-        const ZBuffer::BlockRef ref = {(uint32_t)block->offset, (uint32_t)left, block};
+        const ZBuffer::BlockRef ref = {block->offset, left, block};
         block->offset += left; // must befor append_ref
         append_ref(ref);
         copied += left;

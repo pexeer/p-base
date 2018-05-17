@@ -142,12 +142,13 @@ private:
 
         struct {
             int32_t magic_num;
-            int32_t refs_num;
+            uint32_t refs_num;
             BlockRefArray *refs_array;
             BlockRef first_ref;
         };
     };
 };
+
 static_assert(sizeof(ZBuffer) == 32, "invalid sizeof ZBuffer");
 
 } // end namespace base
