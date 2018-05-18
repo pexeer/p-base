@@ -33,9 +33,21 @@ public:
     ssize_t Read(void *buf, size_t count) { return ::read(fd_, buf, count); }
 
     ~SocketFd() {
+        reset(-1);
+    }
+
+    int fd() const {
+        return fd_;
+    }
+
+    bool reset(int fd) {
         if (fd_ >= 0) {
             ::close(fd_);
+            fd_ = fd;
+            return true;
         }
+        fd_ = fd;
+        return false;
     }
 
     explicit operator bool() const { return fd_ >= 0; }

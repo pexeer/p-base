@@ -5,6 +5,7 @@
 
 #include <stdarg.h>
 #include <string.h>
+#include <string>
 
 #include "p/base/log.h"
 #include "p/base/utils.h"
@@ -97,6 +98,10 @@ public:
             append("null");
         }
         return *this;
+    }
+
+    LogStream& operator<<(char* str) {
+        return *this << (const char*)str;
     }
 
     LogStream& operator<<(const std::string& str) {

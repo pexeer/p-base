@@ -52,6 +52,7 @@ int SocketFd::Connect(const EndPoint &endpoint) {
     set_non_block();
     set_close_on_exec();
     if (::connect(fd_, (struct sockaddr *)&servaddr, sizeof(struct sockaddr)) < 0) {
+        LOG_WARN << "connect " << endpoint << " failed for error=" << strerror(errno);
         return errno;
     }
     return 0;
@@ -69,6 +70,7 @@ int SocketFd::Listen(const EndPoint &endpoint) {
     servaddr.sin_port = htons(endpoint.port());
     servaddr.sin_addr.s_addr = endpoint.ip();
     if (::bind(fd_, (struct sockaddr *)&servaddr, sizeof(struct sockaddr)) < 0) {
+        LOG_WARN << "bind " << endpoint << " failed for error=" << strerror(errno);
         return false;
     }
 
@@ -76,6 +78,7 @@ int SocketFd::Listen(const EndPoint &endpoint) {
     set_close_on_exec();
 
     if (::listen(fd_, SOMAXCONN) < 0) {
+        LOG_WARN << "listen " << endpoint << " failed for error=" << strerror(errno);
         return errno;
     }
     return 0;
@@ -96,6 +99,7 @@ int SocketFd::Accept(SocketFd *new_s) {
     fd = ::accept4(fd_, &new_addr, &addrlen, SOCK_NONBLOCK | SOCK_CLOEXEC);
 #endif
     if (fd < 0) {
+        LOG_WARN << "accept4 " << fd_ << " failed for error=" << strerror(errno);
         return errno;
     }
 
