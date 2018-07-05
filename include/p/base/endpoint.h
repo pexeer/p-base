@@ -56,6 +56,10 @@ public:
 
     static in_addr_t local_ip() { return s_local_ip; }
 
+    bool operator< (const EndPoint& rl) const {
+        return node_ < rl.node_;
+    }
+
 protected:
     static in_addr_t s_local_ip;
 

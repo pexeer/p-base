@@ -16,6 +16,8 @@ class SocketFd {
 public:
     SocketFd() {}
 
+    SocketFd(int fd) : fd_(fd) {}
+
     int Connect(const EndPoint &endpoint);
 
     int Listen(const EndPoint &endpoint);
@@ -31,6 +33,14 @@ public:
     ssize_t Write(const void *buf, size_t count) { return ::write(fd_, buf, count); }
 
     ssize_t Read(void *buf, size_t count) { return ::read(fd_, buf, count); }
+
+    int Shutdown() {
+        if (!::shutdown(fd_, SHUT_RDWR)) {
+            fd_ = -1;
+            return 0;
+        }
+        return errno;
+    }
 
     ~SocketFd() {
         reset(-1);
@@ -56,20 +66,6 @@ public:
         int ret = fd_;
         fd_ = -1;
         return ret;
-    }
-
-    int fd() const {
-        return fd_;
-    }
-
-    bool reset(int fd) {
-        if (fd_ >= 0) {
-            ::close(fd_);
-            fd_ = fd;
-            return true;
-        }
-        fd_ = fd;
-        return false;
     }
 
 protected:

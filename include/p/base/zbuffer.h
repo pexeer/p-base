@@ -47,6 +47,7 @@ public:
         uint32_t length;
         Block *block;
     };
+
     static_assert(sizeof(BlockRef) == 16, "invalid sizeof BlockRef");
 
     struct BlockRefArray {
