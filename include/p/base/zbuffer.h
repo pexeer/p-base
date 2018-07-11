@@ -5,6 +5,7 @@
 
 #include <stdint.h> // uint32_t, uint64_t
 #include <string.h> // size_t
+#include <deque>
 
 namespace p {
 namespace base {
@@ -34,7 +35,7 @@ public:
             return false;
         }
 
-        const char *begin() const;
+        char *begin();
 
         void inc_ref() const;
 
@@ -47,6 +48,10 @@ public:
         uint32_t length;
         Block *block;
     };
+
+    static void acquire_block_ref(BlockRef* ref);
+    static void return_block_ref(BlockRef* ref);
+
 
     static_assert(sizeof(BlockRef) == 16, "invalid sizeof BlockRef");
 
@@ -106,6 +111,10 @@ public:
 
     int append(const char *buf, size_t count);
 
+    int append(ZBuffer&& rh);
+
+    int append(const ZBuffer& rh);
+
     size_t popn(char *buf, size_t count) {
         if (array()) {
             return array_popn(buf, count);
@@ -113,17 +122,25 @@ public:
         return simple_popn(buf, count);
     }
 
+    size_t copy_front(char*buf, size_t count);
+
     void array_resize();
 
     static size_t total_block_number();
 
     static size_t total_block_memory();
 
-protected:
     void append_ref(BlockRef &&ref);
 
     void append_ref(const BlockRef &ref);
 
+    int64_t read_from_fd(int fd, int64_t offset, size_t count);
+
+    int dump(std::deque<ZBuffer::BlockRef>* queue);
+
+    int map(void (*f)(char* buf, int len, void* arg), void* arg);
+
+protected:
     void array_append_ref(BlockRef &&ref);
 
     void array_append_ref(const BlockRef &ref);

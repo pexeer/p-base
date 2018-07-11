@@ -59,9 +59,13 @@ EndPoint::EndPoint(const char *ip_port) {
     while (*ip_port) {
         if (*ip_port == ':') {
             *ip = '\0';
-            ip_ = hostname2ip(buf);
-            if (INADDR_NONE == ip_) {
-                return;
+            if (buf[0]) {
+                ip_ = hostname2ip(buf);
+                if (INADDR_NONE == ip_) {
+                    return;
+                }
+            } else {
+                ip_ = INADDR_ANY;
             }
             const char *port_str = ++ip_port;
             while (*ip_port) {

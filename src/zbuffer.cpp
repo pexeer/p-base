@@ -7,6 +7,9 @@
 #include <atomic>    // std::atomic<>
 #include <new>       // new
 #include <stdlib.h>  // ::malloc,::free
+#include <sys/uio.h> // ::preadv
+#include <assert.h>  // ::assert
+#include <algorithm> // std::min
 
 namespace p {
 namespace base {
@@ -14,9 +17,36 @@ namespace base {
 std::atomic<size_t> g_block_number;
 std::atomic<size_t> g_block_memory;
 
+std::atomic<size_t> g_huge_block_number;
+std::atomic<size_t> g_huge_block_memory;
+
 size_t ZBuffer::total_block_number() { return g_block_number; }
 
 size_t ZBuffer::total_block_memory() { return g_block_memory; }
+
+class ThreadLocalBlockCache {
+public:
+    ThreadLocalBlockCache() : head_{nullptr}, block_number_(0) {}
+
+    ~ThreadLocalBlockCache();
+
+    ZBuffer::Block *acquire_block();
+
+    ZBuffer::Block *pop_front();
+
+    void push_front(ZBuffer::Block* block);
+
+    void release_block(ZBuffer::Block *block);
+
+    void *acquire_block_ref_array(ZBuffer::BlockRef *ref, uint32_t ref_size);
+
+    friend class ZBuffer;
+private:
+    ZBuffer::Block *head_;
+    uint32_t block_number_;
+};
+
+static thread_local ThreadLocalBlockCache tls_block_cache;
 
 struct ZBuffer::Block {
     Block(uint16_t cap) : next{nullptr}, ref_num{1}, offset{0}, capacity{cap} {
@@ -27,21 +57,25 @@ struct ZBuffer::Block {
 
     bool full() const { return (offset + 7) >= capacity; }
 
-    uint32_t left_space() const { return capacity - offset; }
+    size_t left_space() const { return capacity - offset; }
 
     void inc_ref() { ref_num.fetch_add(1, std::memory_order_release); }
 
     void dec_ref() {
         if (ref_num.fetch_sub(1, std::memory_order_release) <= 1) {
-            g_block_number.fetch_sub(1, std::memory_order_relaxed);
-            g_block_memory.fetch_sub(capacity + sizeof(Block), std::memory_order_relaxed);
+            LOG_DEBUG << "try return a Block, ptr=" << this << ", size=" << capacity;
 
-            // LOG_WARN << "free a Block, ptr=" << this << ", size=" << capacity;
-            ::free(this);
+            next = nullptr;
+            ref_num = 1;
+            offset = 0;
+
+            tls_block_cache.release_block(this);
         }
     }
 
     static Block *create_block(uint32_t size);
+
+    static void free_block(Block* block);
 
 public:
     struct ZBuffer::Block   *next;
@@ -55,7 +89,7 @@ static_assert(sizeof(ZBuffer::Block) == 24, "invalid sizeof ZBuffer::Block");
 
 constexpr size_t kNormalBlockPayloadSize = ZBuffer::kNormalBlockSize - sizeof(ZBuffer::Block);
 
-inline const char *ZBuffer::BlockRef::begin() const { return block->data + offset; }
+inline char *ZBuffer::BlockRef::begin() { return block->data + offset; }
 
 inline void ZBuffer::BlockRef::inc_ref() const { block->inc_ref(); }
 
@@ -76,58 +110,76 @@ inline ZBuffer::Block *ZBuffer::Block::create_block(uint32_t size) {
     return block;
 }
 
-class ThreadLocalBlockCache {
-public:
-    ThreadLocalBlockCache() : head_{nullptr}, block_number_(0) {}
+inline void ZBuffer::Block::free_block(Block* block) {
+    LOG_DEBUG << "free a Block, ptr=" << block << ", size=" << block->capacity;
+    g_block_number.fetch_sub(1, std::memory_order_relaxed);
+    g_block_memory.fetch_sub(block->capacity + sizeof(Block), std::memory_order_relaxed);
+    ::free(block);
+}
 
-    ~ThreadLocalBlockCache() {
-        ZBuffer::Block *block;
-        while (head_) {
-            block = head_;
-            head_ = head_->next;
-            block->dec_ref();
-        }
+ThreadLocalBlockCache::~ThreadLocalBlockCache() {
+    ZBuffer::Block *block;
+    while (head_) {
+        block = head_;
+        head_ = head_->next;
+        block->dec_ref();
     }
-
-    ZBuffer::Block *acquire_block();
-
-    void release_block(ZBuffer::Block *block);
-
-    void *acquire_block_ref_array(ZBuffer::BlockRef *ref, uint32_t ref_size);
-
-private:
-    ZBuffer::Block *head_;
-    uint32_t block_number_;
-};
-
-static thread_local ThreadLocalBlockCache tls_block_cache;
+}
 
 inline ZBuffer::Block *ThreadLocalBlockCache::acquire_block() {
     ZBuffer::Block *block = nullptr;
-    if (head_) {
+    while (head_) {
         if (!head_->full()) {
             return head_;
         }
+
         block = head_->next;
         head_->dec_ref();
+
+        head_ = block;
         --block_number_;
     }
 
-    if (!block) {
-        block = ZBuffer::Block::create_block(ZBuffer::kNormalBlockSize);
-        ++block_number_;
-    }
+    block = ZBuffer::Block::create_block(ZBuffer::kNormalBlockSize);
+    ++block_number_;
 
     head_ = block;
     return block;
 }
 
-inline void ThreadLocalBlockCache::release_block(ZBuffer::Block *block) {
+inline ZBuffer::Block * ThreadLocalBlockCache::pop_front() {
+    ZBuffer::Block *block = nullptr;
+    while (head_) {
+        block = head_;
+        head_ = head_->next;
+
+        if (!block->full()) {
+            return block;
+        }
+
+        block->dec_ref();
+        --block_number_;
+    }
+
+    block = ZBuffer::Block::create_block(ZBuffer::kNormalBlockSize);
+    ++block_number_;
+
+    return block;
+}
+
+inline void ThreadLocalBlockCache::push_front(ZBuffer::Block *block) {
     if (block->full()) {
         block->dec_ref();
         return;
     }
 
+    // insert
+    block->next = head_;
+    head_ = block;
+    ++block_number_;
+}
+
+inline void ThreadLocalBlockCache::release_block(ZBuffer::Block *block) {
     if (block_number_ < ZBuffer::kBlockCachedPerThread) {
         ++block_number_;
         block->next = head_;
@@ -135,7 +187,7 @@ inline void ThreadLocalBlockCache::release_block(ZBuffer::Block *block) {
         return;
     }
 
-    block->dec_ref();
+    ZBuffer::Block::free_block(block);
 }
 
 inline void *ThreadLocalBlockCache::acquire_block_ref_array(ZBuffer::BlockRef *ref,
@@ -179,6 +231,20 @@ inline void *ThreadLocalBlockCache::acquire_block_ref_array(ZBuffer::BlockRef *r
     block->inc_ref();
 
     return (void *)offset;
+}
+
+void ZBuffer::acquire_block_ref(ZBuffer::BlockRef* ref) {
+    ZBuffer::Block* block = tls_block_cache.pop_front();
+    ref->block = block;
+    ref->offset = block->offset;
+    ref->length = block->left_space();
+}
+
+void ZBuffer::return_block_ref(BlockRef* ref) {
+    ZBuffer::Block* block = ref->block;
+    block->offset += ref->length;
+    block->inc_ref();
+    tls_block_cache.push_front(block);
 }
 
 ZBuffer::~ZBuffer() {
@@ -242,15 +308,15 @@ inline void ZBuffer::array_append_ref(BlockRef &&ref) {
     refs_array->nbytes += ref.length;
 
     if (last.merge(ref)) {
-        ref.dec_ref();
+        ref.release();
         return;
     }
 
-    if
-        UNLIKELY(refs_num > refs_array->cap_mask) { array_resize(); }
+    if (UNLIKELY(refs_num > refs_array->cap_mask)) { array_resize(); }
 
     refs_array->ref_at(refs_num) = ref;
     ++refs_num;
+    ref.reset();
 }
 
 inline void ZBuffer::array_append_ref(const BlockRef &ref) {
@@ -262,8 +328,7 @@ inline void ZBuffer::array_append_ref(const BlockRef &ref) {
         return;
     }
 
-    if
-        UNLIKELY(refs_num > refs_array->cap_mask) { array_resize(); }
+    if (UNLIKELY(refs_num > refs_array->cap_mask)) { array_resize(); }
 
     (refs_array->ref_at(refs_num) = ref).inc_ref();
     ++refs_num;
@@ -308,30 +373,30 @@ inline void ZBuffer::append_ref(BlockRef &&ref) {
         if (!second_.block) {
             // second_.block == nullptr
             if (first_.merge(ref)) {
-                ref.dec_ref();
+                ref.release();
                 return;
             }
 
             second_ = ref;
+            ref.reset();
             return;
         }
 
         if (second_.merge(ref)) {
-            ref.dec_ref();
+            ref.release();
             return;
         }
         // transfer to array
         transfor_to_array();
     }
 
-    array_append_ref(ref);
+    array_append_ref(std::move(ref));
 }
 
 int ZBuffer::append(const char *buf, size_t count) {
     size_t copied = 0;
     while (copied < count) {
         ZBuffer::Block *block = tls_block_cache.acquire_block();
-
         uint32_t left_space = block->left_space();
         uint32_t left = count - copied;
         if (left > left_space) {
@@ -339,11 +404,36 @@ int ZBuffer::append(const char *buf, size_t count) {
         }
         ::memcpy(block->data + block->offset, buf + copied, left);
 
-        const ZBuffer::BlockRef ref = {block->offset, left, block};
+        ZBuffer::BlockRef ref = {block->offset, left, block};
         block->offset += left; // must befor append_ref
         append_ref(ref);
         copied += left;
     }
+    return 0;
+}
+
+int ZBuffer::append(ZBuffer&& rh) {
+    if (!rh.array()) {
+        if (rh.first_.length) {
+            append_ref(std::move(rh.first_));
+        } else {
+            rh.first_.release();
+        }
+
+        if (rh.second_.length) {
+            append_ref(std::move(rh.second_));
+        } else {
+            rh.second_.release();
+        }
+        return 0;
+    }
+
+    int ct = rh.refs_num;
+    for (int i = 0; i < ct; ++i) {
+        BlockRef &last = refs_array->ref_at(i);
+        append_ref(std::move(last));
+    }
+
     return 0;
 }
 
@@ -407,6 +497,185 @@ size_t ZBuffer::array_popn(char *buf, size_t count) {
     refs_num -= i;
     return copied;
 }
+
+size_t ZBuffer::copy_front(char*buf, size_t count) {
+    size_t copied = 0;
+
+    if (!array()) {
+        {
+            BlockRef &ref = first_;
+            if (ref.length >= count) {
+                ::memcpy(buf + copied, ref.begin(), count);
+                copied += count;
+                return copied;
+            }
+
+            ::memcpy(buf + copied, ref.begin(), ref.length);
+            copied += ref.length;
+            count -= ref.length;
+        }
+        {
+            BlockRef &ref = second_;
+            if (ref.length >= count) {
+                ::memcpy(buf + copied, ref.begin(), count);
+                copied += count;
+                return copied;
+            }
+
+            ::memcpy(buf + copied, ref.begin(), ref.length);
+            copied += ref.length;
+            count -= ref.length;
+        }
+        return copied;
+    }
+
+    uint32_t i = 0;
+    for (; i < refs_num; ++i) {
+        BlockRef &ref = refs_array->ref_at(i);
+        if (ref.length >= count) {
+            ::memcpy(buf + copied, ref.begin(), count);
+            copied += count;
+            return copied;
+        }
+
+        ::memcpy(buf + copied, ref.begin(), ref.length);
+        copied += ref.length;
+        count -= ref.length;
+    }
+    return copied;
+
+}
+
+int64_t ZBuffer::read_from_fd(int fd, int64_t offset, size_t count) {
+    constexpr int kMaxIov = 64;
+    iovec iov[kMaxIov];
+
+    ZBuffer::Block *p = tls_block_cache.acquire_block();
+    ZBuffer::Block *prev = nullptr;
+    assert(p);
+
+    int i = 0;
+    size_t space = 0;
+
+    do {
+        if (p == nullptr) {
+            p = ZBuffer::Block::create_block(ZBuffer::kNormalBlockSize);
+            prev->next = p;
+            ++tls_block_cache.block_number_;
+        }
+        iov[i].iov_base = p->data + p->offset;
+        iov[i].iov_len = std::min(p->left_space(), count - space);
+        space += iov[i].iov_len;
+
+        ++i;
+        prev = p;
+        p = p->next;
+
+        if (space >= count || i >= kMaxIov) {
+            break;
+        }
+    } while (1);
+
+    int nr = 0;
+    if (offset < 0) {
+        nr = ::readv(fd, iov, i);
+    } else {
+        nr = ::preadv(fd, iov, i, offset);
+    }
+
+    if (nr <= 0) {
+        return nr;
+    }
+
+    size_t total = nr;
+    p = tls_block_cache.head_;
+    tls_block_cache.head_ = nullptr;
+    prev = nullptr;
+    do {
+        size_t len = std::min(total, p->left_space());
+        total -= len;
+        ZBuffer::BlockRef tmp = { p->offset, (uint32_t)len, p};
+        append_ref(std::move(tmp));
+        p->offset += len;
+
+        if (p->full()) {
+            prev = p;
+            p = p->next;
+            prev->dec_ref();
+            --tls_block_cache.block_number_;
+        } else {
+            assert(total == 0);
+        }
+    } while (total);
+    tls_block_cache.head_ = p;
+
+    return nr;
+}
+
+int ZBuffer::dump(std::deque<ZBuffer::BlockRef>* queue) {
+    int nr = 0;
+    if (!array()) {
+        if (first_.length) {
+            queue->push_back(first_);
+            first_.reset();
+            ++nr;
+        } else {
+            first_.release();
+        }
+
+        if (second_.length) {
+            queue->push_back(first_);
+            second_.reset();
+            ++nr;
+        } else {
+            second_.release();
+        }
+        return nr;
+    }
+
+    int ct = refs_num;
+    for (int i = 0; i < ct; ++i) {
+        BlockRef &last = refs_array->ref_at(i);
+        if (last.length) {
+            queue->push_back(last);
+            ++nr;
+        } else {
+            last.release();
+        }
+    }
+
+    first_ref.release();
+
+    first_.reset();
+    second_.reset();
+    return nr;
+}
+
+int ZBuffer::map(void (*f)(char* buf, int len, void* arg), void* arg) {
+    int nr = 0;
+    if (!array()) {
+        if (first_.block) {
+            f(first_.begin(), first_.length, arg);
+            ++nr;
+        }
+
+        if (second_.block) {
+            f(second_.begin(), second_.length, arg);
+            ++nr;
+        }
+        return nr;
+    }
+
+    int ct = refs_num;
+    for (int i = 0; i < ct; ++i) {
+        BlockRef &last = refs_array->ref_at(i);
+        f(last.begin(), last.length, arg);
+        ++nr;
+    }
+    return nr;
+
+}
+
 
 } // end namespace base
 } // end namespace p
