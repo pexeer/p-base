@@ -63,7 +63,7 @@ struct ZBuffer::Block {
 
     void dec_ref() {
         if (ref_num.fetch_sub(1, std::memory_order_release) <= 1) {
-            LOG_DEBUG << "try return a Block, ptr=" << this << ", size=" << capacity;
+            LOG_DEBUG << "try return a Block, ptr=" << this << ",size=" << capacity;
 
             next = nullptr;
             ref_num = 1;
@@ -107,6 +107,7 @@ inline void ZBuffer::BlockRef::release() {
 inline ZBuffer::Block *ZBuffer::Block::create_block(uint32_t size) {
     void *ptr = ::malloc(size);
     ZBuffer::Block *block = new (ptr) ZBuffer::Block(size);
+    LOG_DEBUG << "new a Block, ptr=" << block << ",size=" << block->capacity;
     return block;
 }
 
@@ -367,6 +368,7 @@ inline void ZBuffer::append_ref(BlockRef &&ref) {
     if (!array()) {
         if (!first_.block) {
             first_ = ref;
+            ref.reset();
             return;
         }
 
@@ -433,6 +435,8 @@ int ZBuffer::append(ZBuffer&& rh) {
         BlockRef &last = refs_array->ref_at(i);
         append_ref(std::move(last));
     }
+    rh.refs_num = 0;
+    rh.refs_array->reset();
 
     return 0;
 }
@@ -553,6 +557,8 @@ int64_t ZBuffer::read_from_fd(int fd, int64_t offset, size_t count) {
     ZBuffer::Block *p = tls_block_cache.acquire_block();
     ZBuffer::Block *prev = nullptr;
     assert(p);
+    assert(p == tls_block_cache.head_);
+    ZBuffer::Block *tmp = p;
 
     int i = 0;
     size_t space = 0;
@@ -588,25 +594,26 @@ int64_t ZBuffer::read_from_fd(int fd, int64_t offset, size_t count) {
     }
 
     size_t total = nr;
-    p = tls_block_cache.head_;
-    tls_block_cache.head_ = nullptr;
+    p = tmp;
+    assert(tmp == tls_block_cache.head_);
     prev = nullptr;
     do {
         size_t len = std::min(total, p->left_space());
         total -= len;
         ZBuffer::BlockRef tmp = { p->offset, (uint32_t)len, p};
-        append_ref(std::move(tmp));
         p->offset += len;
 
         if (p->full()) {
+            append_ref(std::move(tmp));
+            --tls_block_cache.block_number_;
             prev = p;
             p = p->next;
-            prev->dec_ref();
-            --tls_block_cache.block_number_;
         } else {
+            append_ref(tmp);
             assert(total == 0);
         }
     } while (total);
+
     tls_block_cache.head_ = p;
 
     return nr;

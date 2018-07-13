@@ -52,17 +52,40 @@ int SocketFd::Connect(const EndPoint &endpoint) {
 
     set_non_block();
     set_close_on_exec();
+    int err = 0;
     if (::connect(fd_, (struct sockaddr *)&servaddr, sizeof(struct sockaddr)) < 0) {
-        LOG_WARN << "connect " << endpoint << " failed for error=" << strerror(errno);
-        return errno;
+        err = errno;
     }
-    return 0;
+
+    switch (err)
+    {
+    case 0:
+    case EINPROGRESS:
+    case EINTR:
+    case EISCONN:
+        // success
+        LOG_DEBUG << "connect " << endpoint << " success for error=" << strerror(errno);
+        return 0;
+    case EAGAIN:
+    case EADDRINUSE:
+    case EADDRNOTAVAIL:
+    case ECONNREFUSED:
+    case ENETUNREACH:
+        // need retry
+        LOG_DEBUG << "connect " << endpoint << " need retry for error=" << strerror(errno);
+        return 1;
+        break;
+    }
+
+    LOG_WARN << "connect " << endpoint << " failed for error=" << strerror(errno);
+    return -1;
 }
 
 int SocketFd::GetSocketErr() {
     int opt;
     socklen_t len = sizeof(opt);
     if (getsockopt(fd_, SOL_SOCKET, SO_ERROR, &opt, &len) < 0) {
+        LOG_DEBUG << this << " SocketFd getsockopt failed error=" << strerror(errno);
         return errno;
     }
     return opt;

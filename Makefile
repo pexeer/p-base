@@ -2,9 +2,10 @@
 # Copyright (C) 2015 pexeer@gamil.com
 # Wed Sep  9 19:45:01 CST 2015
 
+#STD=-std=c++11 -fsanitize=address -fno-omit-frame-pointer
 STD=-std=c++11
 WARNING=-Wall -Werror
-DEBUG=-g3
+DEBUG=-g
 #OPT=-O2
 BUILD_DIR ?= ./build
 SRC_DIRS ?= ./src

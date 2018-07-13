@@ -71,6 +71,11 @@ public:
 
         BlockRef &ref_at(uint32_t i) { return refs[(begin + i) & cap_mask]; }
 
+        void reset() {
+            nbytes = 0;
+            begin = 0;
+        }
+
     public:
         uint64_t nbytes;
         uint32_t begin;
