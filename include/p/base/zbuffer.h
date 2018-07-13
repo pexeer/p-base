@@ -14,7 +14,7 @@ namespace base {
 class ZBuffer {
 public:
     // 8kbytes for each normal block
-    static constexpr size_t kNormalBlockSize = 16 * 1024Ul;
+    static constexpr size_t kNormalBlockSize = 4 * 1024Ul;
     static constexpr size_t kInitBlockRefArraySize = 16UL;
     static constexpr size_t kBlockCachedPerThread = 16UL;
 

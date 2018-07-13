@@ -39,6 +39,7 @@ inline int SocketFd::set_no_delay() {
 }
 
 int SocketFd::Connect(const EndPoint &endpoint) {
+    reset(-1);
     fd_ = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (fd_ < 0) {
         return errno;
@@ -56,6 +57,15 @@ int SocketFd::Connect(const EndPoint &endpoint) {
         return errno;
     }
     return 0;
+}
+
+int SocketFd::GetSocketErr() {
+    int opt;
+    socklen_t len = sizeof(opt);
+    if (getsockopt(fd_, SOL_SOCKET, SO_ERROR, &opt, &len) < 0) {
+        return errno;
+    }
+    return opt;
 }
 
 int SocketFd::Listen(const EndPoint &endpoint) {

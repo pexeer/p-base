@@ -22,6 +22,8 @@ public:
 
     int Listen(const EndPoint &endpoint);
 
+    int GetSocketErr();
+
     int set_non_block();
 
     int set_close_on_exec();
