@@ -30,6 +30,14 @@ public:
 
     int set_no_delay();
 
+    int set_fast_open();
+
+    int set_reuse_addr();
+
+    int set_reuse_port();
+
+    int set_defer_accpet();
+
     int Accept(SocketFd *new_s);
 
     ssize_t Write(const void *buf, size_t count) { return ::write(fd_, buf, count); }

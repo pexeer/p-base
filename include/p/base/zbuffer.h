@@ -5,6 +5,7 @@
 
 #include <stdint.h> // uint32_t, uint64_t
 #include <string.h> // size_t
+#include <atomic>   // std::atomic<>
 #include <deque>
 
 namespace p {
@@ -14,11 +15,32 @@ namespace base {
 class ZBuffer {
 public:
     // 8kbytes for each normal block
-    static constexpr size_t kNormalBlockSize = 4 * 1024Ul;
-    static constexpr size_t kInitBlockRefArraySize = 16UL;
-    static constexpr size_t kBlockCachedPerThread = 16UL;
+    static constexpr size_t kNormalBlockSize = 8 * 1024Ul;
+    static constexpr size_t kInitBlockRefArraySize = 32UL;
+    static constexpr size_t kBlockCachedPerThread = 32UL;
 
-    struct Block;
+    struct Block {
+        Block(uint16_t cap);
+
+        bool full() const { return (offset + 7) >= capacity; }
+
+        int32_t left_space() const { return capacity - offset; }
+
+        void inc_ref() { ref_num.fetch_add(1, std::memory_order_release); }
+
+        void dec_ref();
+
+        static Block *create_block(uint32_t size);
+
+        static void free_block(Block* block);
+
+    public:
+        struct Block            *next;
+        std::atomic<int64_t>    ref_num;
+        int32_t                 offset;
+        int32_t                 capacity;
+        char                    data[0];
+    };
 
     struct BlockRef {
         void reset() {
@@ -35,23 +57,33 @@ public:
             return false;
         }
 
-        char *begin();
+        char *begin() { return block->data + offset; }
 
-        void inc_ref() const;
+        void inc_ref() const {
+            block->inc_ref();
+        }
 
-        void dec_ref() const;
+        void dec_ref() const {
+            block->dec_ref();
+        }
 
-        void release();
+        void release() {
+            if (block) {
+                block->dec_ref();
+            }
+            offset = 0;
+            length = 0;
+            block = nullptr;
+        }
 
     public:
-        uint32_t offset;
-        uint32_t length;
+        int32_t offset;
+        int32_t length;
         Block *block;
     };
 
     static void acquire_block_ref(BlockRef* ref);
     static void return_block_ref(BlockRef* ref);
-
 
     static_assert(sizeof(BlockRef) == 16, "invalid sizeof BlockRef");
 
@@ -103,12 +135,12 @@ public:
         return refs_array->nbytes;
     }
 
-    uint32_t blockref_num() {
+    int32_t blockref_num() {
         if (!array()) {
             if (second_.block == nullptr) {
-                return (uint32_t)(first_.block != nullptr);
+                return first_.block ? 1 : 0;
             }
-            return 1 + (first_.block != nullptr);
+            return 1 + (first_.block ? 1 : 0);
         }
 
         return 1 + refs_num;
@@ -165,7 +197,7 @@ private:
 
         struct {
             int32_t magic_num;
-            uint32_t refs_num;
+            int32_t refs_num;
             BlockRefArray *refs_array;
             BlockRef first_ref;
         };

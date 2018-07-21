@@ -14,7 +14,7 @@ namespace p {
 namespace base {
 
 // set non-block flag for fd_
-inline int SocketFd::set_non_block() {
+int SocketFd::set_non_block() {
     int flags = ::fcntl(fd_, F_GETFL, 0);
     if (flags > 0) {
         flags |= O_NONBLOCK;
@@ -24,7 +24,7 @@ inline int SocketFd::set_non_block() {
 }
 
 // set close-on-exec flag for fd_
-inline int SocketFd::set_close_on_exec() {
+int SocketFd::set_close_on_exec() {
     int flags = ::fcntl(fd_, F_GETFD, 0);
     if (flags > 0) {
         flags |= FD_CLOEXEC;
@@ -33,9 +33,29 @@ inline int SocketFd::set_close_on_exec() {
     return flags;
 }
 
-inline int SocketFd::set_no_delay() {
+int SocketFd::set_no_delay() {
     int flag = 1;
     return setsockopt(fd_, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(flag));
+}
+
+int SocketFd::set_reuse_addr() {
+    int optval = 1;
+    return ::setsockopt(fd_, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+}
+
+int SocketFd::set_reuse_port() {
+    int optval = 1;
+    return ::setsockopt(fd_, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval));
+}
+
+int SocketFd::set_defer_accpet() {
+    int soValue = 1;
+    return ::setsockopt(fd_, IPPROTO_TCP, TCP_DEFER_ACCEPT, &soValue, sizeof(soValue));
+}
+
+int SocketFd::set_fast_open() {
+    int qlen = 5;
+    return ::setsockopt(fd_, SOL_TCP, TCP_FASTOPEN, &qlen, sizeof(qlen));
 }
 
 int SocketFd::Connect(const EndPoint &endpoint) {
@@ -109,6 +129,7 @@ int SocketFd::Listen(const EndPoint &endpoint) {
 
     set_non_block();
     set_close_on_exec();
+    set_defer_accpet();
 
     if (::listen(fd_, SOMAXCONN) < 0) {
         LOG_WARN << "listen " << endpoint << " failed for error=" << strerror(errno);

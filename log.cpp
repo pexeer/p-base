@@ -9,7 +9,7 @@
 void f() {
     long long fuck = 1;
     for (int i = 1; i < 102400; ++i) {
-        LOG_TRACE << "Hello, world " << i << ",countf=" << fuck;
+        LOG_TRACE << "FHello, world " << i << ",countf=" << fuck;
         fuck += 2 * i;
     }
 }
@@ -17,7 +17,7 @@ void f() {
 void g() {
     unsigned long long fuck = 1;
     for (int i = 1; i < 102400; ++i) {
-        LOG_INFO << "Hello, world " << i << ",countg=" << fuck << fuck << 'x' << (double) 1.212;
+        LOG_INFO << "GHello, world " << i << ",countg=" << fuck << fuck << 'x' << (double) 1.212;
         fuck += 3 * i;
     }
 }
@@ -25,7 +25,7 @@ void g() {
 void f1() {
     unsigned long long fuck = 1;
     for (int i = 1; i < 102400; ++i) {
-        LOG_ERROR << "Hello, world " << i << ",countg=" << fuck << fuck << 'x' << (double) 1.212;
+        LOG_ERROR << "f1Hello, world " << i << ",countg=" << fuck << fuck << 'x' << (double) 1.212;
         fuck += 3 * i;
         if (i % 100) {
             continue;
@@ -37,7 +37,7 @@ void f1() {
 void f2() {
     unsigned long long fuck = 1;
     for (int i = 1; i < 102400; ++i) {
-        LOG_WARN << "Hello, world " << i << ",countg=" << fuck << fuck << 'x' << (double) 1.212;
+        LOG_WARN << "f2Hello, world " << i << ",countg=" << fuck << fuck << 'x' << (double) 1.212;
         fuck += 3 * i;
         if (i % 100) {
             continue;
@@ -49,7 +49,7 @@ void f2() {
 void f3() {
     unsigned long long fuck = 1;
     for (int i = 1; i < 102400; ++i) {
-        LOG_TRACE << "Hello, world " << i << ",countg=" << fuck << p::base::noflush;
+        LOG_TRACE << "f3Hello, world " << i << ",countg=" << fuck << p::base::noflush();
         LOG_WARN << " i wiil flush";
         fuck += 3 * i;
         if (i % 100) {
@@ -81,10 +81,14 @@ void fuck_me() {
 }
 
 int main() {
+    //fuck_me();
+    LOG_DEBUG << "fuck me";
+
+
     fuck_me();
 
+    /*
 
-#if 0
     std::thread a1(f);
     std::thread a2(g);
 
@@ -98,6 +102,7 @@ int main() {
 
     a1.join();
     a2.join();
-#endif
+    */
+
     return 0;
 }

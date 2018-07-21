@@ -42,7 +42,7 @@ public:
 
     EndPoint(in_addr_t ip, unsigned short port) : ip_(ip), port_(port) {}
 
-    EndPoint(const sockaddr_in* s) : ip_(s->sin_addr.s_addr), port_(s->sin_port) {}
+    EndPoint(const sockaddr_in* s);
 
     explicit operator bool() const { return ip_ != INADDR_NONE; }
 
@@ -58,6 +58,10 @@ public:
 
     bool operator< (const EndPoint& rl) const {
         return node_ < rl.node_;
+    }
+
+    void set_port(unsigned short port) {
+        port_ = port;
     }
 
 protected:

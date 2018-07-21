@@ -51,6 +51,8 @@ in_addr_t str2ip(const char *ip_str) {
     return INADDR_NONE;
 }
 
+EndPoint::EndPoint(const sockaddr_in* s) : ip_(s->sin_addr.s_addr), port_(ntohs(s->sin_port)) {}
+
 EndPoint::EndPoint(const char *ip_port) {
     for (; isspace(*ip_port); ++ip_port) {
     }

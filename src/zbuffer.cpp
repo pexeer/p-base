@@ -48,64 +48,29 @@ private:
 
 static thread_local ThreadLocalBlockCache tls_block_cache;
 
-struct ZBuffer::Block {
-    Block(uint16_t cap) : next{nullptr}, ref_num{1}, offset{0}, capacity{cap} {
-        capacity -= (uint16_t)sizeof(Block);
-        g_block_number.fetch_add(1, std::memory_order_relaxed);
-        g_block_memory.fetch_add(cap, std::memory_order_relaxed);
+ZBuffer::Block::Block(uint16_t cap) : next{nullptr}, ref_num{1}, offset{0}, capacity{cap} {
+    capacity -= (uint16_t)sizeof(Block);
+    g_block_number.fetch_add(1, std::memory_order_relaxed);
+    g_block_memory.fetch_add(cap, std::memory_order_relaxed);
+}
+
+void ZBuffer::Block::dec_ref() {
+    if (ref_num.fetch_sub(1, std::memory_order_release) <= 1) {
+        LOG_DEBUG << "try return a Block, ptr=" << this << ",size=" << capacity;
+
+        next = nullptr;
+        offset = 0;
+
+        tls_block_cache.release_block(this);
     }
-
-    bool full() const { return (offset + 7) >= capacity; }
-
-    size_t left_space() const { return capacity - offset; }
-
-    void inc_ref() { ref_num.fetch_add(1, std::memory_order_release); }
-
-    void dec_ref() {
-        if (ref_num.fetch_sub(1, std::memory_order_release) <= 1) {
-            LOG_DEBUG << "try return a Block, ptr=" << this << ",size=" << capacity;
-
-            next = nullptr;
-            ref_num = 1;
-            offset = 0;
-
-            tls_block_cache.release_block(this);
-        }
-    }
-
-    static Block *create_block(uint32_t size);
-
-    static void free_block(Block* block);
-
-public:
-    struct ZBuffer::Block   *next;
-    std::atomic<int64_t>    ref_num;
-    uint32_t                offset;
-    uint32_t                capacity;
-    char                    data[0];
-};
+}
 
 static_assert(sizeof(ZBuffer::Block) == 24, "invalid sizeof ZBuffer::Block");
 
 constexpr size_t kNormalBlockPayloadSize = ZBuffer::kNormalBlockSize - sizeof(ZBuffer::Block);
 
-inline char *ZBuffer::BlockRef::begin() { return block->data + offset; }
-
-inline void ZBuffer::BlockRef::inc_ref() const { block->inc_ref(); }
-
-inline void ZBuffer::BlockRef::dec_ref() const { block->dec_ref(); }
-
-inline void ZBuffer::BlockRef::release() {
-    if (block) {
-        block->dec_ref();
-    }
-    offset = 0;
-    length = 0;
-    block = nullptr;
-}
-
 inline ZBuffer::Block *ZBuffer::Block::create_block(uint32_t size) {
-    void *ptr = ::malloc(size);
+    void *ptr = ::malloc((size + 0x7) & ~0x7);
     ZBuffer::Block *block = new (ptr) ZBuffer::Block(size);
     LOG_DEBUG << "new a Block, ptr=" << block << ",size=" << block->capacity;
     return block;
@@ -183,6 +148,7 @@ inline void ThreadLocalBlockCache::push_front(ZBuffer::Block *block) {
 inline void ThreadLocalBlockCache::release_block(ZBuffer::Block *block) {
     if (block_number_ < ZBuffer::kBlockCachedPerThread) {
         ++block_number_;
+        block->inc_ref();
         block->next = head_;
         head_ = block;
         return;
@@ -197,6 +163,7 @@ inline void *ThreadLocalBlockCache::acquire_block_ref_array(ZBuffer::BlockRef *r
     size_t array_bytes = ref_size * sizeof(ZBuffer::BlockRef);
     array_bytes += (sizeof(ZBuffer::BlockRefArray) + sizeof(ZBuffer::BlockRef));
     if (array_bytes < kNormalBlockPayloadSize) {
+        LOG_DEBUG << "acquire_block_ref_array need size=" << array_bytes;
         block = head_;
         while (block) {
             if (block->left_space() >= array_bytes) {
@@ -211,25 +178,28 @@ inline void *ThreadLocalBlockCache::acquire_block_ref_array(ZBuffer::BlockRef *r
             ++block_number_;
         }
     } else {
-        // LOG_WARN << "acquire_block_ref_array big size=" << array_bytes;
+        LOG_WARN << "acquire_block_ref_array big size=" << array_bytes;
         block = ZBuffer::Block::create_block(array_bytes + sizeof(ZBuffer::Block));
         block->next = head_;
         head_ = block;
         ++block_number_;
     }
 
-    uintptr_t offset = (uintptr_t) & (block->data[block->offset]);
+    LOG_DEBUG << this << " ZBuffer found block=" << (void*)block << ",offset=" << block->offset
+        << ",length=" << array_bytes;
+
+    uintptr_t offset = (uintptr_t)(block->data + block->offset);
     offset += (sizeof(ZBuffer::BlockRefArray) - 1);
     offset &= ~(sizeof(ZBuffer::BlockRefArray) - 1);
 
-    uintptr_t end = offset + sizeof(ZBuffer::BlockRefArray) + ref_size * sizeof(ZBuffer::BlockRef);
-
+    block->inc_ref();
     ref->offset = block->offset;
     ref->block = block;
-    ref->length = uint32_t(end - offset);
+    ref->length = array_bytes;
 
-    block->offset += ref->length;
-    block->inc_ref();
+    block->offset += array_bytes;
+
+    LOG_DEBUG << "Block " << this << " offset=" << block->offset;
 
     return (void *)offset;
 }
@@ -399,8 +369,8 @@ int ZBuffer::append(const char *buf, size_t count) {
     size_t copied = 0;
     while (copied < count) {
         ZBuffer::Block *block = tls_block_cache.acquire_block();
-        uint32_t left_space = block->left_space();
-        uint32_t left = count - copied;
+        int32_t left_space = block->left_space();
+        int32_t left = count - copied;
         if (left > left_space) {
             left = left_space;
         }
@@ -408,6 +378,8 @@ int ZBuffer::append(const char *buf, size_t count) {
 
         ZBuffer::BlockRef ref = {block->offset, left, block};
         block->offset += left; // must befor append_ref
+        block->offset += 7;
+        block->offset = block->offset & ~0x7;
         append_ref(ref);
         copied += left;
     }
@@ -432,7 +404,7 @@ int ZBuffer::append(ZBuffer&& rh) {
 
     int ct = rh.refs_num;
     for (int i = 0; i < ct; ++i) {
-        BlockRef &last = refs_array->ref_at(i);
+        BlockRef &last = rh.refs_array->ref_at(i);
         append_ref(std::move(last));
     }
     rh.refs_num = 0;
@@ -570,7 +542,7 @@ int64_t ZBuffer::read_from_fd(int fd, int64_t offset, size_t count) {
             ++tls_block_cache.block_number_;
         }
         iov[i].iov_base = p->data + p->offset;
-        iov[i].iov_len = std::min(p->left_space(), count - space);
+        iov[i].iov_len = std::min((size_t)p->left_space(), count - space);
         space += iov[i].iov_len;
 
         ++i;
@@ -597,24 +569,37 @@ int64_t ZBuffer::read_from_fd(int fd, int64_t offset, size_t count) {
     p = tmp;
     assert(tmp == tls_block_cache.head_);
     prev = nullptr;
+    int j = 0;
+    ZBuffer::BlockRef   tmp_save[kMaxIov];
     do {
-        size_t len = std::min(total, p->left_space());
+        int32_t len = std::min(total, (size_t)p->left_space());
+        if (total != len) {
+            assert(iov[j].iov_len == len);
+        }
+        assert(iov[j].iov_base == (p->data + p->offset));
         total -= len;
-        ZBuffer::BlockRef tmp = { p->offset, (uint32_t)len, p};
+        tmp_save[j] = { p->offset, len, p};
         p->offset += len;
+        ++j;
 
         if (p->full()) {
-            append_ref(std::move(tmp));
             --tls_block_cache.block_number_;
             prev = p;
             p = p->next;
         } else {
-            append_ref(tmp);
+            p->offset = (p->offset + 0x7) & ~0x7;
+            p->inc_ref();
             assert(total == 0);
         }
     } while (total);
 
+    assert(i >= j);
+
     tls_block_cache.head_ = p;
+
+    for (i = 0; i < j; ++i) {
+        append_ref(std::move(tmp_save[i]));
+    }
 
     return nr;
 }
@@ -631,7 +616,7 @@ int ZBuffer::dump(std::deque<ZBuffer::BlockRef>* queue) {
         }
 
         if (second_.length) {
-            queue->push_back(first_);
+            queue->push_back(second_);
             second_.reset();
             ++nr;
         } else {
@@ -679,10 +664,10 @@ int ZBuffer::map(void (*f)(char* buf, int len, void* arg), void* arg) {
         f(last.begin(), last.length, arg);
         ++nr;
     }
+
     return nr;
 
 }
-
 
 } // end namespace base
 } // end namespace p

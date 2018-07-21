@@ -5,12 +5,9 @@
 #include "p/base/time.h"
 #include "p/base/utils.h"
 #include <stdio.h>
-//#define LOG_TIME_TO_US
 
 namespace p {
 namespace base {
-
-LogLevel g_log_level = LogLevel::kTrace;
 
 // 20160912-13:34:59.000Z
 // 01234567890123456789012345

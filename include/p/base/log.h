@@ -21,8 +21,6 @@ enum class LogLevel {
 constexpr int SizeOfLogLevelName = 7;
 constexpr const char *LogLevelName[] = {" TRACE ", " DEBUG ", "  INFO ",
                                         "  WARN ", " ERROR ", " FATAL "};
-extern LogLevel g_log_level;
-
 namespace LogDate {
 const char *get_log_date_str();
 
@@ -85,15 +83,6 @@ private:
     int name_size_;
     int file_line_;
 };
-
-class LogSink {
-public:
-    virtual ~LogSink() = 0;
-
-    virtual int sink(const char *msg, int len) = 0;
-};
-
-bool stop_logging();
 
 } // end namespace base
 } // end namespace p

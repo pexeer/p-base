@@ -9,13 +9,18 @@
 
 #include "p/base/log.h"
 #include "p/base/utils.h"
+//#include "p/base/fixed_buffer.h"
 
 namespace p {
 namespace base {
 
 class LogStream {
 public:
-    LogStream() : cur_(nullptr), end_(nullptr), source_file_(__FILE__, __LINE__) {}
+    struct LogEntry;
+
+    LogStream()
+        : sentry_(nullptr), log_(nullptr), cur_(nullptr), end_(nullptr),
+          source_file_(__FILE__, __LINE__) {}
 
     LogStream& operator<<(short v) {
         _AppendInteger(v);
@@ -112,8 +117,6 @@ public:
     LogStream& operator<<(const void* v) {
         constexpr int kMaxPointerSize = 2 * sizeof(const void*) + 2;
         if (avial() >= kMaxPointerSize) {
-            *cur_++ = '0';
-            *cur_++ = 'x';
             cur_ += ConvertPointer(cur_, v);
         }
         return *this;
@@ -138,12 +141,14 @@ public:
         return *this;
     }
 
+    LogStream& operator<<(LogStream& (*func)(LogStream&)) { return (*func)(*this); }
+
     LogStream& operator()(const char* data, int len) {
         append(data,len);
         return *this;
     }
 
-    LogStream& do_noflush() {
+    LogStream& noflush() {
         auto_flush_ = false;
         return *this;
     }
@@ -160,6 +165,11 @@ public:
     }
 
 private:
+    // check buffer is enaugh for a log and check buffer is using by a log
+    // return -1, buffer is using, write log is not finished;
+    // return >=0, buffer is ready and empty
+    int check_log_buffer();
+
     void Sink();
 
     int just_append(const char* buf, int len) {
@@ -212,17 +222,11 @@ private:
 
     friend class LogMessage;
 
-    bool empty() const {
-        return cur_ == buffer_;
-    }
-
-    bool check_buffer();
-
 private:
-    char*      buffer_ = nullptr;
+    LogEntry*  sentry_;
+    LogEntry*  log_;
     char*      cur_;
     char*      end_;
-
     bool       auto_flush_ = true;
     LogLevel   log_level_;
     SourceFile source_file_;
@@ -233,7 +237,18 @@ typedef LogStream LogStream;
 
 class LogMessage {
 public:
+    static bool set_wf_log_min_level(LogLevel wf_log_min_level);
+
+    typedef void (*OutputFunc)(const char* log_msg, int len);
+
+    static void set_output_func(OutputFunc output_func);
+
+    static void set_wf_output_func(OutputFunc output_func);
+
+public:
     LogMessage() {}
+
+    // LogStream &log_stream(LogLevel log_level, const char *file, int line);
 
     LogStream& log_stream(LogLevel log_level, const SourceFile& source_file);
 
@@ -260,8 +275,11 @@ LogStream& operator <<(LogStream& ls, T* t) {
 
 struct noflush {
     LogStream& Logger(LogStream& ls) const {
-        return ls.do_noflush();
+        return ls.noflush();
     }
+
+private:
+    P_DISALLOW_COPY(noflush);
 };
 
 struct HexUint64 {
