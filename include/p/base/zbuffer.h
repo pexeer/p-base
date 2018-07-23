@@ -173,7 +173,7 @@ public:
 
     int64_t read_from_fd(int fd, int64_t offset, size_t count);
 
-    int dump(std::deque<ZBuffer::BlockRef>* queue);
+    int dump_refs_to(std::deque<ZBuffer::BlockRef>* queue);
 
     int map(void (*f)(char* buf, int len, void* arg), void* arg);
 

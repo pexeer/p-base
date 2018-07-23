@@ -11,7 +11,7 @@ namespace base {
 
 ThisThread::ThisThread() {
     thread_id_ = gettid();
-    thread_name_len_ = snprintf(thread_name_, sizeof(thread_name_), "%5d ", thread_id_) - 1;
+    thread_name_len_ = snprintf(thread_name_, sizeof(thread_name_), "T%05d ", thread_id_) - 1;
 }
 
 thread_local ThisThread tls_this_thread;

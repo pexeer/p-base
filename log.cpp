@@ -82,12 +82,11 @@ void fuck_me() {
 
 int main() {
     //fuck_me();
+    p::base::Log::set_log_level(p::base::LogLevel::kTrace);
     LOG_DEBUG << "fuck me";
 
 
     fuck_me();
-
-    /*
 
     std::thread a1(f);
     std::thread a2(g);
@@ -102,7 +101,6 @@ int main() {
 
     a1.join();
     a2.join();
-    */
 
     return 0;
 }

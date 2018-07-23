@@ -21,7 +21,7 @@ namespace base {
 ////////////////////////////////////////
 // for p/base/logging.h class Log
 
-LogLevel g_log_level = LogLevel::kTrace;
+LogLevel g_log_level = LogLevel::kInfo;
 LogLevel g_ef_log_level = LogLevel::kError;
 
 size_t   g_max_length_per_log = 2 * 1024;

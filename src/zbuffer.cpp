@@ -387,15 +387,18 @@ int ZBuffer::append(const char *buf, size_t count) {
 }
 
 int ZBuffer::append(ZBuffer&& rh) {
+    int nr = 0;
     if (!rh.array()) {
         if (rh.first_.length) {
             append_ref(std::move(rh.first_));
+            ++nr;
         } else {
             rh.first_.release();
         }
 
         if (rh.second_.length) {
             append_ref(std::move(rh.second_));
+            ++nr;
         } else {
             rh.second_.release();
         }
@@ -406,11 +409,36 @@ int ZBuffer::append(ZBuffer&& rh) {
     for (int i = 0; i < ct; ++i) {
         BlockRef &last = rh.refs_array->ref_at(i);
         append_ref(std::move(last));
+        ++nr;
     }
     rh.refs_num = 0;
     rh.refs_array->reset();
 
-    return 0;
+    return nr;
+}
+
+int ZBuffer::append(const ZBuffer& rh) {
+    int nr = 0;
+    if (!rh.array()) {
+        if (rh.first_.length) {
+            append_ref(rh.first_);
+            ++nr;
+        }
+
+        if (rh.second_.length) {
+            append_ref(rh.second_);
+            ++nr;
+        }
+        return 0;
+    }
+
+    int ct = rh.refs_num;
+    for (int i = 0; i < ct; ++i) {
+        append_ref(rh.refs_array->ref_at(i));
+        ++nr;
+    }
+
+    return nr;
 }
 
 size_t ZBuffer::simple_popn(char *buf, size_t count) {
@@ -604,7 +632,7 @@ int64_t ZBuffer::read_from_fd(int fd, int64_t offset, size_t count) {
     return nr;
 }
 
-int ZBuffer::dump(std::deque<ZBuffer::BlockRef>* queue) {
+int ZBuffer::dump_refs_to(std::deque<ZBuffer::BlockRef>* queue) {
     int nr = 0;
     if (!array()) {
         if (first_.length) {
@@ -666,7 +694,6 @@ int ZBuffer::map(void (*f)(char* buf, int len, void* arg), void* arg) {
     }
 
     return nr;
-
 }
 
 } // end namespace base
