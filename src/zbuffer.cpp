@@ -369,8 +369,8 @@ int ZBuffer::append(const char *buf, size_t count) {
     size_t copied = 0;
     while (copied < count) {
         ZBuffer::Block *block = tls_block_cache.acquire_block();
-        int32_t left_space = block->left_space();
-        int32_t left = count - copied;
+        uint32_t left_space = block->left_space();
+        uint32_t left = count - copied;
         if (left > left_space) {
             left = left_space;
         }
@@ -446,7 +446,7 @@ size_t ZBuffer::simple_popn(char *buf, size_t count) {
         return 0;
     }
 
-    if (first_.length > count) {
+    if (first_.length > (int64_t)count) {
         ::memcpy(buf, first_.begin(), count);
         first_.offset += count;
         first_.length -= count;
@@ -462,7 +462,7 @@ size_t ZBuffer::simple_popn(char *buf, size_t count) {
         return copied;
     }
 
-    if (count >= second_.length) {
+    if ((int64_t)count >= second_.length) {
         count = second_.length;
         ::memcpy(buf + copied, second_.begin(), count);
         second_.release();
@@ -481,7 +481,7 @@ size_t ZBuffer::array_popn(char *buf, size_t count) {
     size_t copied = 0;
 
     uint32_t i = 0;
-    for (; i < refs_num; ++i) {
+    for (; i < (uint32_t)refs_num; ++i) {
         BlockRef &ref = refs_array->ref_at(i);
         if (ref.length > count) {
             ::memcpy(buf + copied, ref.begin(), count);
@@ -600,7 +600,7 @@ int64_t ZBuffer::read_from_fd(int fd, int64_t offset, size_t count) {
     int j = 0;
     ZBuffer::BlockRef   tmp_save[kMaxIov];
     do {
-        int32_t len = std::min(total, (size_t)p->left_space());
+        uint32_t len = std::min(total, (size_t)p->left_space());
         if (total != len) {
             assert(iov[j].iov_len == len);
         }

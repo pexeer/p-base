@@ -9,8 +9,8 @@ DEBUG=-g
 #OPT=-O2
 BUILD_DIR ?= ./build
 SRC_DIRS ?= ./src
-CC=clang
-CXX=clang++
+#CC=clang
+#CXX=clang++
 
 SRCS := $(shell find $(SRC_DIRS) -name \*.cpp -or -name \*.c -or -name \*.S)
 OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)

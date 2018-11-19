@@ -24,7 +24,7 @@ public:
 
         bool full() const { return (offset + 7) >= capacity; }
 
-        int32_t left_space() const { return capacity - offset; }
+        uint32_t left_space() const { return capacity - offset; }
 
         void inc_ref() { ref_num.fetch_add(1, std::memory_order_release); }
 
@@ -37,8 +37,8 @@ public:
     public:
         struct Block            *next;
         std::atomic<int64_t>    ref_num;
-        int32_t                 offset;
-        int32_t                 capacity;
+        uint32_t                 offset;
+        uint32_t                 capacity;
         char                    data[0];
     };
 
@@ -77,8 +77,8 @@ public:
         }
 
     public:
-        int32_t offset;
-        int32_t length;
+        uint32_t offset;
+        uint32_t length;
         Block *block;
     };
 
@@ -197,7 +197,7 @@ private:
 
         struct {
             int32_t magic_num;
-            int32_t refs_num;
+            uint32_t refs_num;
             BlockRefArray *refs_array;
             BlockRef first_ref;
         };
